@@ -1,0 +1,21 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "functions": {
+    "api/lookup.ts": {
+      "runtime": "@vercel/node@5.8.2",
+      "includeFiles": "public/geojson/*.json"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/lookup",
+      "destination": "/api/lookup"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

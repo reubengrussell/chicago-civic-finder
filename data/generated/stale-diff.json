@@ -1,0 +1,843 @@
+{
+  "fetchedAt": "2026-05-27T18:47:22.937Z",
+  "diffs": [
+    {
+      "regionType": "ward",
+      "regionId": "11",
+      "before": [
+        "Nicole Lee"
+      ],
+      "after": [
+        "Nicole T. Lee"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "17",
+      "before": [
+        "David Moore"
+      ],
+      "after": [
+        "David H. Moore"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "19",
+      "before": [
+        "Matthew O'Shea"
+      ],
+      "after": [
+        "Matthew J. O'Shea"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "24",
+      "before": [
+        "Monique Scott"
+      ],
+      "after": [
+        "Monique L. Scott"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "26",
+      "before": [
+        "Jessica Fuentes"
+      ],
+      "after": [
+        "Jessica L. Fuentes"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "27",
+      "before": [
+        "Walter Burnett, Jr."
+      ],
+      "after": [
+        "Walter R. Burnett"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "28",
+      "before": [
+        "Jason Ervin"
+      ],
+      "after": [
+        "Jason C. Ervin"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "29",
+      "before": [
+        "Christopher Taliaferro"
+      ],
+      "after": [
+        "Chris Taliaferro"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "31",
+      "before": [
+        "Felix Cardona, Jr."
+      ],
+      "after": [
+        "Jr. Cardona"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "35",
+      "before": [
+        "Carlos Ramirez-Rosa"
+      ],
+      "after": [
+        "Anthony J. Quezada"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "40",
+      "before": [
+        "Andre Vasquez, Jr."
+      ],
+      "after": [
+        "Jr. Vasquez"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "43",
+      "before": [
+        "Timmy Knudsen"
+      ],
+      "after": [
+        "Timothy R. Knudsen"
+      ]
+    },
+    {
+      "regionType": "ward",
+      "regionId": "50",
+      "before": [
+        "Debra Silverstein"
+      ],
+      "after": [
+        "Debra L. Silverstein"
+      ]
+    },
+    {
+      "regionType": "congressional",
+      "regionId": "3",
+      "before": [
+        "Delia Ramirez"
+      ],
+      "after": [
+        "Delia C. Ramirez"
+      ]
+    },
+    {
+      "regionType": "congressional",
+      "regionId": "9",
+      "before": [
+        "Janice Schakowsky"
+      ],
+      "after": [
+        "Janice D. Schakowsky"
+      ]
+    },
+    {
+      "regionType": "congressional",
+      "regionId": "1",
+      "before": [
+        "Jonathan Jackson"
+      ],
+      "after": [
+        "Jonathan L. Jackson"
+      ]
+    },
+    {
+      "regionType": "congressional",
+      "regionId": "15",
+      "before": [
+        "Mary Miller"
+      ],
+      "after": [
+        "Mary E. Miller"
+      ]
+    },
+    {
+      "regionType": "congressional",
+      "regionId": "4",
+      "before": [
+        "Jesus Garcia"
+      ],
+      "after": [
+        "Jesús G. \"Chuy\" García"
+      ]
+    },
+    {
+      "regionType": "congressional",
+      "regionId": "2",
+      "before": [
+        "Robin Kelly"
+      ],
+      "after": [
+        "Robin L. Kelly"
+      ]
+    },
+    {
+      "regionType": "congressional",
+      "regionId": "10",
+      "before": [
+        "Bradley Schneider"
+      ],
+      "after": [
+        "Bradley Scott Schneider"
+      ]
+    },
+    {
+      "regionType": "congressional",
+      "regionId": "7",
+      "before": [
+        "Danny Davis"
+      ],
+      "after": [
+        "Danny K. Davis"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "2",
+      "before": [
+        "Elizabeth Hernandez"
+      ],
+      "after": [
+        "Elizabeth \"Lisa\" Hernandez"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "15",
+      "before": [
+        "Michael Kelly"
+      ],
+      "after": [
+        "Michael J. Kelly"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "16",
+      "before": [
+        "Kevin Olickal"
+      ],
+      "after": [
+        "Kevin John Olickal"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "20",
+      "before": [
+        "Bradley Stephens"
+      ],
+      "after": [
+        "Brad Stephens"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "26",
+      "before": [
+        "Kambium Buckner"
+      ],
+      "after": [
+        "Kam Buckner"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "28",
+      "before": [
+        "Robert Rita"
+      ],
+      "after": [
+        "Robert \"Bob\" Rita"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "30",
+      "before": [
+        "William Davis"
+      ],
+      "after": [
+        "William \"Will\" Davis"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "31",
+      "before": [
+        "Mary E. Flowers"
+      ],
+      "after": [
+        "Michael Crawford"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "32",
+      "before": [
+        "Cyril Nichols"
+      ],
+      "after": [
+        "Lisa Davis"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "36",
+      "before": [
+        "Kelly M. Burke"
+      ],
+      "after": [
+        "Rick Ryan"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "37",
+      "before": [
+        "Tim Ozinga"
+      ],
+      "after": [
+        "Patrick Sheehan"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "42",
+      "before": [
+        "Terra Costa Howard"
+      ],
+      "after": [
+        "Margaret A. DeLaRosa"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "45",
+      "before": [
+        "Jenn Ladisch Douglass"
+      ],
+      "after": [
+        "Martha Deuter"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "47",
+      "before": [
+        "Amy Grant"
+      ],
+      "after": [
+        "Amy L. Grant"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "53",
+      "before": [
+        "Mark L. Walker"
+      ],
+      "after": [
+        "Nicolle Grasse"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "55",
+      "before": [
+        "Martin J. Moylan"
+      ],
+      "after": [
+        "Justin Cochran"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "57",
+      "before": [
+        "Jonathan Carroll"
+      ],
+      "after": [
+        "Tracy Katz Muhl"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "66",
+      "before": [
+        "Suzanne Ness"
+      ],
+      "after": [
+        "Suzanne M. Ness"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "69",
+      "before": [
+        "Joe Sosnowski"
+      ],
+      "after": [
+        "Joe C. Sosnowski"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "71",
+      "before": [
+        "Daniel Swanson"
+      ],
+      "after": [
+        "Dan Swanson"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "76",
+      "before": [
+        "Lance Yednock"
+      ],
+      "after": [
+        "Amy Briel"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "81",
+      "before": [
+        "Anne Stava-Murray"
+      ],
+      "after": [
+        "Anne Stava"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "82",
+      "before": [
+        "John Egofske"
+      ],
+      "after": [
+        "Nicole La Ha"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "86",
+      "before": [
+        "Lawrence Walsh, Jr."
+      ],
+      "after": [
+        "Lawrence \"Larry\" Walsh, Jr."
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "88",
+      "before": [
+        "Dan Caulkins"
+      ],
+      "after": [
+        "Regan Deering"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "89",
+      "before": [
+        "Tony McCombie"
+      ],
+      "after": [
+        "Tony M. McCombie"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "99",
+      "before": [
+        "Randy E. Frese"
+      ],
+      "after": [
+        "Kyle Moore"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "100",
+      "before": [
+        "C.D. Davidsmeyer"
+      ],
+      "after": [
+        "Christopher \"C.D.\" Davidsmeyer"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "101",
+      "before": [
+        "House District 101"
+      ],
+      "after": [
+        "Chris Miller"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "104",
+      "before": [
+        "Michael T. Marron"
+      ],
+      "after": [
+        "Brandun Schweizer"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "105",
+      "before": [
+        "Dennis Tipsword, Jr."
+      ],
+      "after": [
+        "Dennis Tipsword"
+      ]
+    },
+    {
+      "regionType": "illinoisHouse",
+      "regionId": "106",
+      "before": [
+        "Jason Bunting"
+      ],
+      "after": [
+        "Jason R. Bunting"
+      ]
+    },
+    {
+      "regionType": "illinoisSenate",
+      "regionId": "20",
+      "before": [
+        "Cristina H. Pacione-Zayas"
+      ],
+      "after": [
+        "Graciela Guzmán"
+      ]
+    },
+    {
+      "regionType": "illinoisSenate",
+      "regionId": "26",
+      "before": [
+        "Dan McConchie"
+      ],
+      "after": [
+        "Darby A. Hills"
+      ]
+    },
+    {
+      "regionType": "illinoisSenate",
+      "regionId": "27",
+      "before": [
+        "Ann Gillespie"
+      ],
+      "after": [
+        "Mark L. Walker"
+      ]
+    },
+    {
+      "regionType": "illinoisSenate",
+      "regionId": "36",
+      "before": [
+        "Michael Halpin"
+      ],
+      "after": [
+        "Michael W. Halpin"
+      ]
+    },
+    {
+      "regionType": "illinoisSenate",
+      "regionId": "37",
+      "before": [
+        "Win Stoller"
+      ],
+      "after": [
+        "Li Arellano, Jr."
+      ]
+    },
+    {
+      "regionType": "illinoisSenate",
+      "regionId": "53",
+      "before": [
+        "Tom Bennett"
+      ],
+      "after": [
+        "Chris Balkema"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "17",
+      "before": [
+        "Steve Spagnolo",
+        "Elizabeth Rochford",
+        "Anthony M. Tamez"
+      ],
+      "after": [
+        "Luis Bermudez",
+        "Elizabeth Rochford",
+        "Anthony Tamez"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "19",
+      "before": [
+        "Maurilio Garcia",
+        "Samuel E. Schoenburg",
+        "Jennifer A. Schaffer"
+      ],
+      "after": [
+        "Maurilio Garcia",
+        "Sam Schoenburg",
+        "Jennifer Schaffer"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "14",
+      "before": [
+        "Christopher M. Laurent",
+        "Ashley Vargas",
+        "David Orlikoff"
+      ],
+      "after": [
+        "Christopher Laurent",
+        "Ashley Vargas",
+        "David Orlikoff"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "5",
+      "before": [
+        "Robert A. Mckay",
+        "Thomas L. Mcmahon",
+        "Ponchita Moore"
+      ],
+      "after": [
+        "Robert A. Mckay",
+        "Thomas McMahon",
+        "Ponchita Moore"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "24",
+      "before": [
+        "Veronica I. Arreola",
+        "Marilyn Pagan-Banks",
+        "Keo Jean-Joseph"
+      ],
+      "after": [
+        "Veronica Arreola",
+        "Marilyn Pagan-Banks",
+        "Keola Jean-Joseph"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "8",
+      "before": [
+        "Jason Huff",
+        "Albert Cacciottolo",
+        "Mark Hamberlin"
+      ],
+      "after": [
+        "Jason Huff",
+        "Al Cacciottolo",
+        "Mark Hamberlin"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "12",
+      "before": [
+        "Leonardo Quintero",
+        "Michelle D. Page",
+        "Chloe Vitale"
+      ],
+      "after": [
+        "Leonardo Quintero",
+        "Michelle D. Page",
+        "Vacant"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "11",
+      "before": [
+        "Bryan Ramson, Jr.",
+        "Jocelyn A. Woodards",
+        "Alees Edwards"
+      ],
+      "after": [
+        "Bryan Ramson, Jr.",
+        "Jocelyn Woodards",
+        "Alees Edwards"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "7",
+      "before": [
+        "Teresa Chandler",
+        "Dion T. McGill",
+        "Joseph Williams"
+      ],
+      "after": [
+        "Teresa Chandler",
+        "Dion McGill",
+        "Joseph Williams"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "3",
+      "before": [
+        "Kenya Franklin",
+        "Anthony D. Bryant",
+        "Janice Jones"
+      ],
+      "after": [
+        "Kenya Franklin",
+        "Vacant",
+        "Janice Jones"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "4",
+      "before": [
+        "Lovie Benard",
+        "Gloria Jenkins",
+        "Brenda Waters"
+      ],
+      "after": [
+        "Lovie Bernard",
+        "Gloria Jenkins",
+        "Brenda Waters"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "6",
+      "before": [
+        "David Boykin",
+        "Aisha Humphries"
+      ],
+      "after": [
+        "David Boykin",
+        "Aisha Humphries",
+        "Ciera Whitaker"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "1",
+      "before": [
+        "Sarah Kammerer",
+        "Adrienne Johnson"
+      ],
+      "after": [
+        "Sarah Kammerer",
+        "Adrienne Johnson",
+        "Jamie Brown"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "2",
+      "before": [
+        "Alexander J. Perez",
+        "Ephraim Lee",
+        "Julia Kline"
+      ],
+      "after": [
+        "Ephraim Lee",
+        "Marquinn McDonald",
+        "Alexander Perez"
+      ]
+    },
+    {
+      "regionType": "police",
+      "regionId": "15",
+      "before": [
+        "Carmelita Earls",
+        "Karen Winters",
+        "Deondre Rutues"
+      ],
+      "after": [
+        "Carmelita Earls",
+        "Arewa Najm EKUA",
+        "Deondre Rutues"
+      ]
+    },
+    {
+      "regionType": "schoolBoard",
+      "regionId": "Sub District 9a",
+      "before": [
+        "Frank Niles Thomas"
+      ],
+      "after": [
+        "Dr. Angel L. Velez"
+      ]
+    },
+    {
+      "regionType": "cookCountyCommissioner",
+      "regionId": "2",
+      "before": [
+        "Dennis Deer"
+      ],
+      "after": [
+        "Michael Scott Jr."
+      ]
+    },
+    {
+      "regionType": "cookCountyCommissioner",
+      "regionId": "5",
+      "before": [
+        "Monica Gordon"
+      ],
+      "after": [
+        "Dr. Kisha McCaskill"
+      ]
+    },
+    {
+      "regionType": "cookCountyCommissioner",
+      "regionId": "8",
+      "before": [
+        "Anthony Quezada"
+      ],
+      "after": [
+        "Jessica Vásquez"
+      ]
+    }
+  ]
+}

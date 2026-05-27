@@ -1,0 +1,42 @@
+{
+  "fetchedAt": "2026-05-27T18:47:22.937Z",
+  "sources": {
+    "robust": {
+      "boundaries": {
+        "wards": "https://data.cityofchicago.org/api/geospatial/p293-wvbd?method=export&format=GeoJSON",
+        "congressionalDistricts": "public/geojson/illinois-congressional-districts.json",
+        "illinoisHouseDistricts": "public/geojson/illinois-house.json",
+        "illinoisSenateDistricts": "public/geojson/illinois-senate.json",
+        "policeDistricts": "public/geojson/chicago-police-districts.json",
+        "schoolBoardDistricts": "public/geojson/chicago-school-board.json",
+        "cookCountyCommissionerDistricts": "public/geojson/cook-county-commissioners.json"
+      },
+      "representativeFeeds": {
+        "wardAlderpersonInfo": "https://data.cityofchicago.org/resource/c6ie-9e6c.json?$limit=50000",
+        "congressionalClerkXml": "https://clerk.house.gov/xml/lists/MemberData.xml",
+        "congressionalHouseDirectory": "https://www.house.gov/representatives",
+        "illinoisHouseActiveMemberReport": "http://www.ilga.gov/House/Members/rptMemberList",
+        "illinoisSenateActiveMemberReport": "http://www.ilga.gov/Senate/Members/rptMemberList",
+        "cpsSchoolBoardGeojson": "https://www.cps.edu/api/ersbgeojson/lists"
+      }
+    },
+    "brittle": {
+      "htmlScrapes": {
+        "wardPagesFallback": "https://www.chicago.gov/city/en/about/wards/{ward}.html",
+        "policeDistrictCouncilPages": "https://ccpsa.chicago.gov/district-council/{ordinal-district}-district-council/",
+        "cpsBoardBios": "https://www.cps.edu/about/chicago-board-of-education/",
+        "cookCountyCommissionerProfiles": "https://www.cookcountyil.gov/all-people?field_people_agency_target_id_entityreference_filter%5B%5D=2208&apply_filter=yes",
+        "cookCountyLegistarPeople": "https://cook-county.legistar.com/People.aspx"
+      },
+      "fallbackTransports": {
+        "http://www.ilga.gov/House/Members/rptMemberList": "https://r.jina.ai/http://www.ilga.gov/House/Members/rptMemberList",
+        "http://www.ilga.gov/Senate/Members/rptMemberList": "https://r.jina.ai/http://www.ilga.gov/Senate/Members/rptMemberList"
+      },
+      "notes": [
+        "HTML scrapes are official public pages but can break if page markup changes.",
+        "ILGA report URLs are official sources; reader fallback is only a transport fallback when direct fetches time out.",
+        "Contact URLs are included separately from email when a published form/profile page is the appropriate contact route."
+      ]
+    }
+  }
+}

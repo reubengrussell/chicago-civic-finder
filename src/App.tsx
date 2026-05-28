@@ -1374,10 +1374,6 @@ function FullscreenMap({
               <span>
                 District {visibleMapResult.congressionalDistrict?.number ?? 'Unknown'}
               </span>
-              <span>
-                {visibleMapResult.coordinates.latitude.toFixed(6)},{' '}
-                {visibleMapResult.coordinates.longitude.toFixed(6)}
-              </span>
               {visibleMapResult.ambiguous && (
                 <span>Multiple possible matches: {visibleMapResult.candidates?.join(' | ')}</span>
               )}
@@ -1810,13 +1806,6 @@ function App() {
                 <div className="wide">
                   <span className="label">Location</span>
                   <strong>{result.locationLabel}</strong>
-                </div>
-                <div className="wide muted">
-                  <span className="label">Coordinates</span>
-                  <span>
-                    {result.coordinates.latitude.toFixed(6)},{' '}
-                    {result.coordinates.longitude.toFixed(6)}
-                  </span>
                 </div>
                 {result.ambiguous && (
                   <div className="wide muted">

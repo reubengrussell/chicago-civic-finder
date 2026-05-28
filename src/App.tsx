@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { BarChart3, Download, HelpCircle, KeyRound, Loader2, MapPin, Search } from 'lucide-react'
 import { CircleMarker, GeoJSON, MapContainer, Pane, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
@@ -123,8 +123,23 @@ type LookupAttempt = {
   row: BatchRow
   lookup?: LookupResult
 }
+type LookupRequestRecord =
+  | string
+  | {
+      address?: string
+      street?: string
+      zip?: string
+      coordinates?: string
+      latitude?: number
+      longitude?: number
+    }
 type LookupWithExport = LookupResult & {
   csvRow?: BatchRow
+}
+type UrlLookup = {
+  mode: 'address' | 'coordinates'
+  displayValue: string
+  record: LookupRequestRecord
 }
 type BulkApiRecord = Partial<LookupResult> & {
   input: string
@@ -1424,21 +1439,85 @@ function initialPassword() {
   return password
 }
 
+function initialUrlLookup(): UrlLookup | undefined {
+  const params = new URL(window.location.href).searchParams
+  const coordinates = params.get('coordinates') ?? params.get('coords')
+
+  if (coordinates?.trim()) {
+    return {
+      mode: 'coordinates',
+      displayValue: coordinates.trim(),
+      record: { coordinates: coordinates.trim() },
+    }
+  }
+
+  const latitude = params.get('latitude') ?? params.get('lat')
+  const longitude = params.get('longitude') ?? params.get('lng') ?? params.get('lon')
+
+  if (latitude?.trim() && longitude?.trim()) {
+    const parsedLatitude = Number(latitude)
+    const parsedLongitude = Number(longitude)
+
+    if (Number.isFinite(parsedLatitude) && Number.isFinite(parsedLongitude)) {
+      return {
+        mode: 'coordinates',
+        displayValue: `${latitude.trim()},${longitude.trim()}`,
+        record: {
+          latitude: parsedLatitude,
+          longitude: parsedLongitude,
+        },
+      }
+    }
+  }
+
+  const address =
+    params.get('address') ??
+    params.get('street') ??
+    params.get('q') ??
+    params.get('query')
+  const zip = params.get('zip') ?? params.get('zipcode')
+
+  if (address?.trim()) {
+    return {
+      mode: 'address',
+      displayValue: address.trim(),
+      record: zip?.trim()
+        ? { address: address.trim(), zip: zip.trim() }
+        : address.trim(),
+    }
+  }
+
+  return undefined
+}
+
 function App() {
+  const [initialValues] = useState(() => ({
+    lookup: initialUrlLookup(),
+    password: initialPassword(),
+  }))
+  const autoLookupStarted = useRef(false)
   const [activeTab, setActiveTab] = useState<'lookup' | 'map'>('lookup')
-  const [mode, setMode] = useState<'address' | 'coordinates'>('address')
-  const [addressList, setAddressList] = useState('')
+  const [mode, setMode] = useState<'address' | 'coordinates'>(
+    initialValues.lookup?.mode ?? 'address',
+  )
+  const [addressList, setAddressList] = useState(
+    initialValues.lookup?.mode === 'address' ? initialValues.lookup.displayValue : '',
+  )
   const [addressColumn, setAddressColumn] = useState('')
   const [fileName, setFileName] = useState('')
   const [fileRows, setFileRows] = useState<Record<string, string>[]>([])
-  const [coordinatePair, setCoordinatePair] = useState('')
+  const [coordinatePair, setCoordinatePair] = useState(
+    initialValues.lookup?.mode === 'coordinates'
+      ? initialValues.lookup.displayValue
+      : '',
+  )
   const [csvRepKeys, setCsvRepKeys] = useState<RepExportKey[]>(
     ALL_REP_EXPORT_KEYS,
   )
   const [csvInfoKeys, setCsvInfoKeys] = useState<RepInfoKey[]>(ALL_REP_INFO_KEYS)
-  const [password, setPassword] = useState(initialPassword)
+  const [password, setPassword] = useState(initialValues.password)
   const [passwordInput, setPasswordInput] = useState('')
-  const [unlocked, setUnlocked] = useState(() => Boolean(initialPassword()))
+  const [unlocked, setUnlocked] = useState(() => Boolean(initialValues.password))
   const [result, setResult] = useState<LookupWithExport | null>(null)
   const [mapSeedResults, setMapSeedResults] = useState<LookupResult[]>([])
   const [batchRows, setBatchRows] = useState<BatchRow[]>([])
@@ -1466,7 +1545,7 @@ function App() {
       })
   }, [])
 
-  function addLocalUsage(records: number) {
+  const addLocalUsage = useCallback((records: number) => {
     const current = storedUsage()
     const next = {
       date: current.date,
@@ -1474,12 +1553,12 @@ function App() {
     }
     window.localStorage.setItem('chicago-civic-usage', JSON.stringify(next))
     setUsage((usage) => ({ ...usage, ...next }))
-  }
+  }, [])
 
-  function setLatestApiUsage(latestApi?: LatestApiUsage) {
+  const setLatestApiUsage = useCallback((latestApi?: LatestApiUsage) => {
     if (!latestApi) return
     setUsage((usage) => ({ ...usage, latestApi }))
-  }
+  }, [])
 
   function toggleCsvRep(key: RepExportKey, checked: boolean) {
     setCsvRepKeys((current) =>
@@ -1529,7 +1608,7 @@ function App() {
     setFileRows(rows)
   }
 
-  async function lookupBulk(records: string[], defaultZip: string) {
+  const lookupBulk = useCallback(async (records: LookupRequestRecord[], defaultZip: string) => {
     const response = await fetch('/api/lookup', {
       method: 'POST',
       headers: {
@@ -1562,7 +1641,38 @@ function App() {
     setLatestApiUsage(payload.usage)
 
     return attempts satisfies LookupAttempt[]
-  }
+  }, [addLocalUsage, password, setLatestApiUsage])
+
+  useEffect(() => {
+    const urlLookup = initialValues.lookup
+
+    if (!unlocked || !urlLookup || autoLookupStarted.current) return
+    autoLookupStarted.current = true
+    setLoading(true)
+    setError('')
+    setResult(null)
+    setBatchRows([])
+
+    lookupBulk([urlLookup.record], '')
+      .then((attempts) => {
+        const first = attempts[0]
+        const lookups = attempts
+          .map((attempt) => attempt.lookup)
+          .filter((lookup): lookup is LookupResult => Boolean(lookup))
+
+        setMapSeedResults(lookups)
+
+        if (first?.lookup) {
+          setResult({ ...first.lookup, csvRow: first.row })
+        } else if (first?.row.error) {
+          setError(first.row.error)
+        }
+      })
+      .catch((error) => {
+        setError(error instanceof Error ? error.message : 'The URL lookup failed.')
+      })
+      .finally(() => setLoading(false))
+  }, [initialValues.lookup, lookupBulk, unlocked])
 
   function batchInputs() {
     if (fileRows.length) {

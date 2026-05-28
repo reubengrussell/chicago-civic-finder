@@ -72,6 +72,20 @@ npm run deploy:cloudflare
 Cloudflare Pages uses `functions/api/lookup.ts` for `/api/lookup` and serves
 the static boundary files from `public/geojson`.
 
+## Shareable Lookup Links
+
+Single lookups can be loaded from URL parameters. `address` is treated as one
+freeform address string, so unit commas and apartment text are preserved:
+
+```text
+https://chicago-civic-finder.pages.dev/?auth=change-me&address=2315%20W%20Giddings%20St%2C%20G
+https://chicago-civic-finder.pages.dev/?auth=change-me&coordinates=41.869%2C-87.784
+```
+
+Supported aliases are `street`, `q`, or `query` for address lookup; `coords`
+for coordinate lookup; and `lat`/`lng`, `lat`/`lon`, or
+`latitude`/`longitude` for split coordinate lookup.
+
 ## API
 
 Bulk lookups use `POST /api/lookup` and return JSON records by default:

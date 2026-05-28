@@ -268,6 +268,23 @@ const REP_INFO_OPTIONS: Array<{ key: RepInfoKey; label: string }> = [
   { key: 'photo', label: 'Photo' },
   { key: 'contactUrl', label: 'Contact URL' },
 ]
+const SINGLE_RESULT_ROWS: Array<{
+  key: RepExportKey
+  layer: string
+  fallbackLabel: string
+}> = [
+  { key: 'ward', layer: 'Ward', fallbackLabel: 'Ward' },
+  { key: 'congressional', layer: 'Congressional', fallbackLabel: 'District' },
+  { key: 'illinoisHouse', layer: 'Illinois House', fallbackLabel: 'District' },
+  { key: 'illinoisSenate', layer: 'Illinois Senate', fallbackLabel: 'District' },
+  { key: 'police', layer: 'Police district', fallbackLabel: 'District' },
+  { key: 'schoolBoard', layer: 'School board', fallbackLabel: 'District' },
+  {
+    key: 'cookCountyCommissioner',
+    layer: 'Cook County',
+    fallbackLabel: 'District',
+  },
+]
 const ALL_REP_EXPORT_KEYS = REP_EXPORT_OPTIONS.map((option) => option.key)
 const ALL_REP_INFO_KEYS = REP_INFO_OPTIONS.map((option) => option.key)
 const BASE_CSV_COLUMNS = [
@@ -410,6 +427,32 @@ function representativeCsvFields(regions?: Record<string, RegionInfo | undefined
       ]),
     ),
   )
+}
+
+function singleResultRegions(result: LookupResult) {
+  return {
+    ward: result.regions?.ward ?? {
+      key: 'ward',
+      label: result.ward ? `Ward ${result.ward}` : 'Ward',
+      number: result.ward,
+      representatives: [],
+    },
+    congressional:
+      result.regions?.congressional ??
+      (result.congressionalDistrict
+        ? {
+            key: 'congressional',
+            label: result.congressionalDistrict.name,
+            number: result.congressionalDistrict.number,
+            representatives: [],
+          }
+        : undefined),
+    illinoisHouse: result.regions?.illinoisHouse,
+    illinoisSenate: result.regions?.illinoisSenate,
+    police: result.regions?.police,
+    schoolBoard: result.regions?.schoolBoard,
+    cookCountyCommissioner: result.regions?.cookCountyCommissioner,
+  } satisfies Record<RepExportKey, RegionInfo | undefined>
 }
 
 function rowFromRecord(record: BulkApiRecord): BatchRow {
@@ -831,6 +874,101 @@ function RepresentativeCards({
           </article>
         ))}
       </div>
+    </div>
+  )
+}
+
+function personContact(person: PersonInfo) {
+  if (person.email) {
+    return (
+      <a href={`mailto:${person.email}`} title={person.email}>
+        Email
+      </a>
+    )
+  }
+
+  if (person.phone) {
+    return (
+      <a href={`tel:${person.phone}`} title={person.phone}>
+        Phone
+      </a>
+    )
+  }
+
+  if (person.contactUrl ?? person.website) {
+    return (
+      <a href={person.contactUrl ?? person.website} target="_blank" rel="noreferrer">
+        Contact
+      </a>
+    )
+  }
+
+  return <span className="muted">Not published</span>
+}
+
+function CivicResultTable({ result }: { result: LookupResult }) {
+  const regions = singleResultRegions(result)
+
+  return (
+    <div className="civic-table-wrap">
+      <table className="civic-table">
+        <thead>
+          <tr>
+            <th>Layer</th>
+            <th>Index</th>
+            <th>Representative</th>
+            <th>Contact</th>
+          </tr>
+        </thead>
+        <tbody>
+          {SINGLE_RESULT_ROWS.map((row) => {
+            const region = regions[row.key]
+            const reps = region?.representatives ?? []
+
+            return (
+              <tr key={row.key}>
+                <td>
+                  <span className="layer-name">{row.layer}</span>
+                </td>
+                <td>
+                  <strong>
+                    {region?.number
+                      ? `${row.fallbackLabel} ${region.number}`
+                      : 'Not found'}
+                  </strong>
+                </td>
+                <td>
+                  {reps.length ? (
+                    <div className="table-people">
+                      {reps.map((person) => (
+                        <span key={`${row.key}-${person.name}`}>
+                          {person.name}
+                          {person.title && <small>{person.title}</small>}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="muted">Not published</span>
+                  )}
+                </td>
+                <td>
+                  {reps.length ? (
+                    <div className="contact-links">
+                      {reps.map((person) => (
+                        <span key={`${row.key}-${person.name}-contact`}>
+                          {personContact(person)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="muted">Not published</span>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -1677,61 +1815,7 @@ function App() {
               Open map view
             </button>
 
-            <div className="result-grid">
-              <div>
-                <span className="label">Ward</span>
-                <strong>
-                  {result.ward ? `Ward ${result.ward}` : 'Not found'}
-                </strong>
-              </div>
-              <div>
-                <span className="label">Congressional district</span>
-                <strong>
-                  {result.congressionalDistrict
-                    ? `District ${result.congressionalDistrict.number}`
-                    : 'Not found'}
-                </strong>
-              </div>
-              <div>
-                <span className="label">Illinois House</span>
-                <strong>
-                  {result.regions?.illinoisHouse?.number
-                    ? `District ${result.regions.illinoisHouse.number}`
-                    : 'Not found'}
-                </strong>
-              </div>
-              <div>
-                <span className="label">Illinois Senate</span>
-                <strong>
-                  {result.regions?.illinoisSenate?.number
-                    ? `District ${result.regions.illinoisSenate.number}`
-                    : 'Not found'}
-                </strong>
-              </div>
-              <div>
-                <span className="label">Police district</span>
-                <strong>
-                  {result.regions?.police?.number
-                    ? `District ${result.regions.police.number}`
-                    : 'Not found'}
-                </strong>
-              </div>
-              <div>
-                <span className="label">School board</span>
-                <strong>
-                  {result.regions?.schoolBoard?.number
-                    ? `District ${result.regions.schoolBoard.number}`
-                    : 'Not found'}
-                </strong>
-              </div>
-              <div>
-                <span className="label">Cook County</span>
-                <strong>
-                  {result.regions?.cookCountyCommissioner?.number
-                    ? `District ${result.regions.cookCountyCommissioner.number}`
-                    : 'Not found'}
-                </strong>
-              </div>
+            <div className="result-grid context-grid">
               <div className="wide">
                 <span className="label">Location</span>
                 <strong>{result.locationLabel}</strong>
@@ -1750,10 +1834,7 @@ function App() {
                 </div>
               )}
             </div>
-            <RepresentativeCards
-              regions={result.regions}
-              title="Your representatives"
-            />
+            <CivicResultTable result={result} />
             {singleExportCsv && (
               <div className="batch-output compact-output">
                 <CsvExportControls

@@ -96,19 +96,21 @@
 }
 
 .shell {
-  width: min(1040px, calc(100% - 32px));
+  width: min(1240px, calc(100% - 32px));
   margin: 0 auto;
   min-height: 100svh;
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-  align-items: center;
-  gap: 48px;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 24px;
   padding: 48px 0;
 }
 
 .lookup {
   display: grid;
-  gap: 32px;
+  grid-template-columns: minmax(300px, 0.58fr) minmax(420px, 1fr);
+  align-items: end;
+  gap: 28px;
 }
 
 .intro {
@@ -371,7 +373,7 @@
 }
 
 .result {
-  min-height: 410px;
+  min-height: 0;
   border: 1px solid #d8dee8;
   border-radius: 8px;
   background: #f8faf7;
@@ -500,9 +502,15 @@
   gap: 16px;
 }
 
+.context-grid {
+  grid-template-columns: 1fr;
+}
+
 .result-stack {
   display: grid;
   gap: 16px;
+  grid-template-columns: 320px minmax(0, 1fr);
+  align-items: start;
 }
 
 .map-panel {
@@ -529,6 +537,21 @@
   font: inherit;
   font-weight: 800;
   cursor: pointer;
+}
+
+.result-stack > .map-panel,
+.result-stack > .open-map-button,
+.result-stack > .context-grid {
+  grid-column: 1;
+}
+
+.result-stack > .civic-table-wrap {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+}
+
+.result-stack > .batch-output {
+  grid-column: 1 / -1;
 }
 
 .result-grid > div {
@@ -565,6 +588,83 @@
 
 .muted {
   color: #586174;
+}
+
+.civic-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dde4ed;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.civic-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  color: #172033;
+}
+
+.civic-table th,
+.civic-table td {
+  border-bottom: 1px solid #e5eaf1;
+  padding: 14px 16px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.civic-table th {
+  color: #647084;
+  background: #f8faf7;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.civic-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.civic-table th:first-child,
+.civic-table td:first-child {
+  width: 26%;
+}
+
+.civic-table th:nth-child(2),
+.civic-table td:nth-child(2) {
+  width: 20%;
+}
+
+.civic-table strong {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.layer-name {
+  color: #253049;
+  font-weight: 800;
+}
+
+.table-people,
+.contact-links {
+  display: grid;
+  gap: 8px;
+}
+
+.table-people span {
+  display: grid;
+  gap: 2px;
+  font-weight: 800;
+}
+
+.table-people small {
+  color: #586174;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.contact-links a {
+  color: #1f6f50;
+  font-weight: 800;
 }
 
 .map-screen {
@@ -840,10 +940,21 @@
   }
 
   .form,
+  .lookup,
+  .result-stack,
   .usage-panel,
   .upload-row,
   .result-grid {
     grid-template-columns: 1fr;
+  }
+
+  .result-stack > .map-panel,
+  .result-stack > .open-map-button,
+  .result-stack > .context-grid,
+  .result-stack > .civic-table-wrap,
+  .result-stack > .batch-output {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .map-toolbar {

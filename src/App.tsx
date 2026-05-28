@@ -879,29 +879,26 @@ function RepresentativeCards({
 }
 
 function personContact(person: PersonInfo) {
-  if (person.email) {
-    return (
-      <a href={`mailto:${person.email}`} title={person.email}>
-        Email
+  const url = person.contactUrl ?? person.website
+  const links = [
+    person.email ? (
+      <a href={`mailto:${person.email}`} key="email">
+        {person.email}
       </a>
-    )
-  }
+    ) : undefined,
+    person.phone ? (
+      <a href={`tel:${person.phone}`} key="phone">
+        {person.phone}
+      </a>
+    ) : undefined,
+    url ? (
+      <a href={url} target="_blank" rel="noreferrer" key="contact">
+        Contact page
+      </a>
+    ) : undefined,
+  ].filter(Boolean)
 
-  if (person.phone) {
-    return (
-      <a href={`tel:${person.phone}`} title={person.phone}>
-        Phone
-      </a>
-    )
-  }
-
-  if (person.contactUrl ?? person.website) {
-    return (
-      <a href={person.contactUrl ?? person.website} target="_blank" rel="noreferrer">
-        Contact
-      </a>
-    )
-  }
+  if (links.length) return <span className="contact-values">{links}</span>
 
   return <span className="muted">Not published</span>
 }
@@ -927,17 +924,17 @@ function CivicResultTable({ result }: { result: LookupResult }) {
 
             return (
               <tr key={row.key}>
-                <td>
+                <td data-label="Layer">
                   <span className="layer-name">{row.layer}</span>
                 </td>
-                <td>
+                <td data-label="Index">
                   <strong>
                     {region?.number
                       ? `${row.fallbackLabel} ${region.number}`
                       : 'Not found'}
                   </strong>
                 </td>
-                <td>
+                <td data-label="Representative">
                   {reps.length ? (
                     <div className="table-people">
                       {reps.map((person) => (
@@ -951,7 +948,7 @@ function CivicResultTable({ result }: { result: LookupResult }) {
                     <span className="muted">Not published</span>
                   )}
                 </td>
-                <td>
+                <td data-label="Contact">
                   {reps.length ? (
                     <div className="contact-links">
                       {reps.map((person) => (
@@ -1683,6 +1680,7 @@ function App() {
         <button
           type="button"
           className={activeTab === 'map' ? 'active' : ''}
+          aria-label="Boundary map tab"
           onClick={() => setActiveTab('map')}
         >
           Map
@@ -1699,16 +1697,16 @@ function App() {
       ) : (
         <div className="shell">
           <section className="lookup">
-        <div className="intro">
-          <span className="eyebrow">
-            <MapPin size={16} aria-hidden="true" />
-            Reuben's Region Recombobulator
-          </span>
-          <h1>Lookup of ward and congressional district</h1>
-        </div>
+            <div className="intro">
+              <span className="eyebrow">
+                <MapPin size={16} aria-hidden="true" />
+                Reuben's Region Recombobulator
+              </span>
+              <h1>Lookup of ward and congressional district</h1>
+            </div>
 
-        <form className="form" onSubmit={handleSubmit}>
-          <div className="mode-switch" role="tablist" aria-label="Lookup mode">
+            <form className="form" onSubmit={handleSubmit}>
+              <div className="mode-switch" role="tablist" aria-label="Lookup mode">
             <button
               type="button"
               className={mode === 'address' ? 'active' : ''}
@@ -1723,7 +1721,7 @@ function App() {
             >
               Coordinates
             </button>
-          </div>
+              </div>
 
           {mode === 'address' ? (
             <>
@@ -1733,7 +1731,7 @@ function App() {
                   value={addressList}
                   onChange={(event) => setAddressList(event.target.value)}
                   placeholder={'121 N LaSalle St\n41.985 N Clark St'}
-                  rows={6}
+                  rows={4}
                 />
               </label>
 
@@ -1790,7 +1788,7 @@ function App() {
             )}
             Look up address
           </button>
-        </form>
+            </form>
           </section>
 
           <section className="result" aria-live="polite">
@@ -1804,65 +1802,68 @@ function App() {
 
         {result && (
           <div className="result-stack">
-            <div className="map-panel">
-              <ResultsPreviewMap results={[result]} />
-            </div>
-            <button
-              type="button"
-              className="open-map-button"
-              onClick={() => setActiveTab('map')}
-            >
-              Open map view
-            </button>
-
-            <div className="result-grid context-grid">
-              <div className="wide">
-                <span className="label">Location</span>
-                <strong>{result.locationLabel}</strong>
+            <div className="result-overview">
+              <div className="map-panel">
+                <ResultsPreviewMap results={[result]} />
               </div>
-              <div className="wide muted">
-                <span className="label">Coordinates</span>
-                <span>
-                  {result.coordinates.latitude.toFixed(6)},{' '}
-                  {result.coordinates.longitude.toFixed(6)}
-                </span>
-              </div>
-              {result.ambiguous && (
-                <div className="wide muted">
-                  <span className="label">Possible matches</span>
-                  <span>{result.candidates?.join(' | ')}</span>
+              <div className="result-grid context-grid">
+                <div className="wide">
+                  <span className="label">Location</span>
+                  <strong>{result.locationLabel}</strong>
                 </div>
-              )}
+                <div className="wide muted">
+                  <span className="label">Coordinates</span>
+                  <span>
+                    {result.coordinates.latitude.toFixed(6)},{' '}
+                    {result.coordinates.longitude.toFixed(6)}
+                  </span>
+                </div>
+                {result.ambiguous && (
+                  <div className="wide muted">
+                    <span className="label">Possible matches</span>
+                    <span>{result.candidates?.join(' | ')}</span>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="open-map-button"
+                onClick={() => setActiveTab('map')}
+              >
+                Open map view
+              </button>
             </div>
             <CivicResultTable result={result} />
             {singleExportCsv && (
-              <div className="batch-output compact-output">
-                <CsvExportControls
-                  selectedReps={csvRepKeys}
-                  selectedFields={csvInfoKeys}
-                  onRepChange={toggleCsvRep}
-                  onFieldChange={toggleCsvInfo}
-                />
-                <div className="batch-actions">
-                  <span className="label">CSV export</span>
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(singleExportCsv)}
-                  >
-                    Copy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      downloadText(outputFilename(fileName || 'addresses.csv'), singleExportCsv)
-                    }
-                  >
-                    <Download size={16} aria-hidden="true" />
-                    Download
-                  </button>
+              <details className="csv-details">
+                <summary>Export CSV</summary>
+                <div className="batch-output compact-output">
+                  <CsvExportControls
+                    selectedReps={csvRepKeys}
+                    selectedFields={csvInfoKeys}
+                    onRepChange={toggleCsvRep}
+                    onFieldChange={toggleCsvInfo}
+                  />
+                  <div className="batch-actions">
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(singleExportCsv)}
+                    >
+                      Copy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadText(outputFilename(fileName || 'addresses.csv'), singleExportCsv)
+                      }
+                    >
+                      <Download size={16} aria-hidden="true" />
+                      Download
+                    </button>
+                  </div>
+                  <textarea readOnly value={singleExportCsv} rows={4} />
                 </div>
-                <textarea readOnly value={singleExportCsv} rows={4} />
-              </div>
+              </details>
             )}
           </div>
         )}

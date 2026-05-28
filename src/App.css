@@ -1,3 +1,14 @@
+.app,
+.app *,
+.app *::before,
+.app *::after,
+.login-shell,
+.login-shell *,
+.login-shell *::before,
+.login-shell *::after {
+  box-sizing: border-box;
+}
+
 .app {
   min-height: 100svh;
 }
@@ -8,9 +19,9 @@
 }
 
 .app-tabs {
-  width: min(1040px, calc(100% - 32px));
+  width: min(1240px, calc(100% - 32px));
   margin: 0 auto;
-  padding-top: 18px;
+  padding-top: 14px;
   display: flex;
   gap: 8px;
 }
@@ -103,19 +114,25 @@
   grid-template-columns: 1fr;
   align-items: start;
   gap: 24px;
-  padding: 48px 0;
+  padding: 24px 0 48px;
 }
 
 .lookup {
+  min-width: 0;
+  width: 100%;
   display: grid;
-  grid-template-columns: minmax(300px, 0.58fr) minmax(420px, 1fr);
-  align-items: end;
-  gap: 28px;
+  gap: 18px;
 }
 
 .intro {
   display: grid;
-  gap: 18px;
+  gap: 8px;
+}
+
+.intro h1 {
+  max-width: 760px;
+  font-size: 38px;
+  line-height: 1.08;
 }
 
 .eyebrow {
@@ -170,6 +187,7 @@
 
 .page-footer-panel {
   grid-column: 1 / -1;
+  min-width: 0;
   display: grid;
   gap: 14px;
 }
@@ -213,10 +231,15 @@
 }
 
 .form {
+  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 148px;
   gap: 14px;
   align-items: end;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #f8faf7;
+  padding: 18px;
 }
 
 .wide-field {
@@ -373,6 +396,8 @@
 }
 
 .result {
+  min-width: 0;
+  width: 100%;
   min-height: 0;
   border: 1px solid #d8dee8;
   border-radius: 8px;
@@ -509,12 +534,10 @@
 .result-stack {
   display: grid;
   gap: 16px;
-  grid-template-columns: 320px minmax(0, 1fr);
-  align-items: start;
 }
 
 .map-panel {
-  height: 210px;
+  height: 160px;
   overflow: hidden;
   border: 1px solid #dde4ed;
   border-radius: 8px;
@@ -539,19 +562,11 @@
   cursor: pointer;
 }
 
-.result-stack > .map-panel,
-.result-stack > .open-map-button,
-.result-stack > .context-grid {
-  grid-column: 1;
-}
-
-.result-stack > .civic-table-wrap {
-  grid-column: 2;
-  grid-row: 1 / span 3;
-}
-
-.result-stack > .batch-output {
-  grid-column: 1 / -1;
+.result-overview {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 160px;
+  gap: 16px;
+  align-items: stretch;
 }
 
 .result-grid > div {
@@ -599,7 +614,7 @@
 
 .civic-table {
   width: 100%;
-  min-width: 720px;
+  min-width: 860px;
   border-collapse: collapse;
   color: #172033;
 }
@@ -665,6 +680,33 @@
 .contact-links a {
   color: #1f6f50;
   font-weight: 800;
+}
+
+.contact-values {
+  display: grid;
+  gap: 3px;
+}
+
+.contact-values a {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.csv-details {
+  border: 1px solid #dde4ed;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px 14px;
+}
+
+.csv-details summary {
+  color: #1f6f50;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.csv-details .batch-output {
+  margin-top: 12px;
 }
 
 .map-screen {
@@ -768,7 +810,7 @@
 .map-workspace {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   gap: 12px;
 }
 
@@ -941,20 +983,11 @@
 
   .form,
   .lookup,
-  .result-stack,
+  .result-overview,
   .usage-panel,
   .upload-row,
   .result-grid {
     grid-template-columns: 1fr;
-  }
-
-  .result-stack > .map-panel,
-  .result-stack > .open-map-button,
-  .result-stack > .context-grid,
-  .result-stack > .civic-table-wrap,
-  .result-stack > .batch-output {
-    grid-column: 1;
-    grid-row: auto;
   }
 
   .map-toolbar {
@@ -984,5 +1017,63 @@
   .result {
     min-height: 260px;
     padding: 18px;
+  }
+
+  .api-overview pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .intro h1 {
+    font-size: 34px;
+  }
+
+  .form {
+    padding: 14px;
+  }
+
+  .civic-table {
+    min-width: 0;
+  }
+
+  .civic-table thead {
+    display: none;
+  }
+
+  .civic-table,
+  .civic-table tbody,
+  .civic-table tr,
+  .civic-table td {
+    display: block;
+  }
+
+  .civic-table tr {
+    border-bottom: 1px solid #e5eaf1;
+    padding: 12px 0;
+  }
+
+  .civic-table tr:last-child {
+    border-bottom: 0;
+  }
+
+  .civic-table td {
+    border-bottom: 0;
+    padding: 6px 14px;
+    display: grid;
+    grid-template-columns: 108px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .civic-table td::before {
+    content: attr(data-label);
+    color: #647084;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .civic-table td:first-child,
+  .civic-table td:nth-child(2) {
+    width: auto;
   }
 }

@@ -267,6 +267,15 @@ type CensusMatch = {
   geographies: CensusGeographies
 }
 
+type LookupLocation = {
+  label: string
+  latitude: number
+  longitude: number
+  geographies?: CensusGeographies
+  ambiguous?: boolean
+  candidates?: string[]
+}
+
 async function getAddressGeographies(street: string, zip?: string) {
   const params = new URLSearchParams({
     street,
@@ -304,6 +313,119 @@ async function getAddressGeographies(street: string, zip?: string) {
     ambiguous: matches.length > 1,
     candidates: matches.slice(0, 5).map((match) => match.matchedAddress),
   }
+}
+
+function csvValue(value: string) {
+  return `"${value.replaceAll('"', '""')}"`
+}
+
+function csvRow(values: string[]) {
+  return values.map(csvValue).join(',')
+}
+
+function parseCsvRows(csv: string) {
+  const rows: string[][] = []
+  let row: string[] = []
+  let value = ''
+  let quoted = false
+
+  for (let index = 0; index < csv.length; index += 1) {
+    const char = csv[index]
+    const next = csv[index + 1]
+
+    if (quoted) {
+      if (char === '"' && next === '"') {
+        value += '"'
+        index += 1
+      } else if (char === '"') {
+        quoted = false
+      } else {
+        value += char
+      }
+      continue
+    }
+
+    if (char === '"') {
+      quoted = true
+    } else if (char === ',') {
+      row.push(value)
+      value = ''
+    } else if (char === '\n') {
+      row.push(value)
+      rows.push(row)
+      row = []
+      value = ''
+    } else if (char !== '\r') {
+      value += char
+    }
+  }
+
+  if (value || row.length) {
+    row.push(value)
+    rows.push(row)
+  }
+
+  return rows
+}
+
+async function getAddressBatchGeographies(records: ParsedLookup[]) {
+  const csv = records
+    .map((record, index) =>
+      csvRow([
+        index.toString(),
+        record.street ?? '',
+        'Chicago',
+        'IL',
+        record.zip ?? '',
+      ]),
+    )
+    .join('\n')
+  const form = new FormData()
+
+  form.append('addressFile', new Blob([csv], { type: 'text/csv' }), 'addresses.csv')
+  form.append('benchmark', 'Public_AR_Current')
+
+  const censusResponse = await fetch(
+    'https://geocoding.geo.census.gov/geocoder/locations/addressbatch',
+    {
+      method: 'POST',
+      body: form,
+    },
+  )
+
+  if (!censusResponse.ok) {
+    throw new Error('The Census geocoder did not respond.')
+  }
+
+  const locations = new Map<number, LookupLocation>()
+
+  for (const row of parseCsvRows(await censusResponse.text())) {
+    const index = Number(row[0])
+    const status = row[2]
+    const matchedAddress = row[4]
+    const [longitude, latitude] = (row[5] ?? '')
+      .split(',')
+      .map((value) => Number(value))
+
+    if (
+      !Number.isInteger(index) ||
+      status !== 'Match' ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      continue
+    }
+
+    locations.set(index, {
+      label: matchedAddress,
+      latitude,
+      longitude,
+      ambiguous: false,
+      candidates: [],
+    })
+  }
+
+  return locations
 }
 
 function parseCoordinatePair(value?: string) {
@@ -531,6 +653,13 @@ async function lookupOne(
     throw new Error('No matching Chicago address was found for that street and ZIP.')
   }
 
+  return lookupFromLocation(lookup, loadBoundaries)
+}
+
+async function lookupFromLocation(
+  lookup: LookupLocation,
+  loadBoundaries: BoundaryLoader,
+): Promise<Record<string, unknown>> {
   const regions = await civicRegions(lookup.longitude, lookup.latitude, loadBoundaries)
   const ward = regions.ward?.number
   const congressionalDistrict = regions.congressional
@@ -596,6 +725,19 @@ function errorRecord(input: string, error: unknown) {
   }
 }
 
+function estimateExternalSubrequests(records: ParsedLookup[], usedAddressBatch: boolean) {
+  if (usedAddressBatch) return records.length ? 1 : 0
+
+  return records.reduce(
+    (total, record) =>
+      total +
+      (record.latitude !== undefined || record.longitude !== undefined
+        ? LOOKUP_LIMITS.externalSubrequestsPerCoordinate
+        : LOOKUP_LIMITS.externalSubrequestsPerAddress),
+    0,
+  )
+}
+
 async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
   const records = bulkRecords(input.body, input.params.get('zip')?.trim())
 
@@ -619,13 +761,55 @@ async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
     }
   }
 
+  const addressBatch = records.every(
+    (record) =>
+      record.street &&
+      record.latitude === undefined &&
+      record.longitude === undefined,
+  )
   const output = []
 
-  for (const record of records) {
+  if (addressBatch) {
     try {
-      output.push(recordFromLookup(record.input, await lookupOne(record, input.loadBoundaries)))
+      const locations = await getAddressBatchGeographies(records)
+
+      for (const [index, record] of records.entries()) {
+        try {
+          const location = locations.get(index)
+
+          if (!location) {
+            throw new Error(
+              'No matching Chicago address was found for that street and ZIP.',
+            )
+          }
+
+          output.push(
+            recordFromLookup(
+              record.input,
+              await lookupFromLocation(location, input.loadBoundaries),
+            ),
+          )
+        } catch (error) {
+          output.push(errorRecord(record.input, error))
+        }
+      }
     } catch (error) {
-      output.push(errorRecord(record.input, error))
+      for (const record of records) {
+        output.push(errorRecord(record.input, error))
+      }
+    }
+  } else {
+    for (const record of records) {
+      try {
+        output.push(
+          recordFromLookup(
+            record.input,
+            await lookupOne(record, input.loadBoundaries),
+          ),
+        )
+      } catch (error) {
+        output.push(errorRecord(record.input, error))
+      }
     }
   }
 
@@ -635,13 +819,9 @@ async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
       records: output,
       usage: {
         records: output.length,
-        estimatedExternalSubrequests: records.reduce(
-          (total, record) =>
-            total +
-            (record.latitude !== undefined || record.longitude !== undefined
-              ? LOOKUP_LIMITS.externalSubrequestsPerCoordinate
-              : LOOKUP_LIMITS.externalSubrequestsPerAddress),
-          0,
+        estimatedExternalSubrequests: estimateExternalSubrequests(
+          records,
+          addressBatch,
         ),
       },
       limits: LOOKUP_LIMITS,

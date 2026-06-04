@@ -88,6 +88,10 @@ type LookupBodyRecord =
     }
 
 const MAX_RECORDS_PER_REQUEST = 20
+const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
+const NOMINATIM_USER_AGENT = 'CivicFinder/1.0'
+const NOMINATIM_CHICAGO_VIEWBOX = '-87.95,42.05,-87.45,41.55'
+const NOMINATIM_REQUEST_SPACING_MS = 1100
 
 export const LOOKUP_LIMITS = {
   cloudflareRequestsPerDay: 100000,
@@ -323,6 +327,22 @@ function csvRow(values: string[]) {
   return values.map(csvValue).join(',')
 }
 
+function addressLooksComplete(address: string) {
+  return (
+    /\bchicago\b/i.test(address) ||
+    /\b(?:il|illinois)\b/i.test(address) ||
+    /\b\d{5}(?:-\d{4})?\b/.test(address)
+  )
+}
+
+function censusBatchAddressParts(record: ParsedLookup) {
+  const street = record.street ?? ''
+
+  return addressLooksComplete(street)
+    ? [street, '', '', '']
+    : [street, 'Chicago', 'IL', record.zip ?? '']
+}
+
 function parseCsvRows(csv: string) {
   const rows: string[][] = []
   let row: string[] = []
@@ -371,13 +391,7 @@ function parseCsvRows(csv: string) {
 async function getAddressBatchGeographies(records: ParsedLookup[]) {
   const csv = records
     .map((record, index) =>
-      csvRow([
-        index.toString(),
-        record.street ?? '',
-        'Chicago',
-        'IL',
-        record.zip ?? '',
-      ]),
+      csvRow([index.toString(), ...censusBatchAddressParts(record)]),
     )
     .join('\n')
   const form = new FormData()
@@ -426,6 +440,93 @@ async function getAddressBatchGeographies(records: ParsedLookup[]) {
   }
 
   return locations
+}
+
+let lastNominatimRequestAt = 0
+let nominatimQueue = Promise.resolve()
+
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+async function withNominatimSlot<T>(request: () => Promise<T>) {
+  const previous = nominatimQueue
+  let release: () => void = () => undefined
+
+  nominatimQueue = new Promise<void>((resolve) => {
+    release = resolve
+  })
+
+  await previous
+
+  const waitMs =
+    NOMINATIM_REQUEST_SPACING_MS - (Date.now() - lastNominatimRequestAt)
+
+  if (waitMs > 0) await sleep(waitMs)
+
+  try {
+    lastNominatimRequestAt = Date.now()
+    return await request()
+  } finally {
+    release()
+  }
+}
+
+function nominatimAddressQuery(record: ParsedLookup) {
+  const street = record.street ?? record.input
+
+  return addressLooksComplete(street)
+    ? street
+    : [street, 'Chicago', 'IL', record.zip].filter(Boolean).join(', ')
+}
+
+async function getNominatimAddressGeography(record: ParsedLookup) {
+  return withNominatimSlot(async () => {
+    const params = new URLSearchParams({
+      format: 'jsonv2',
+      q: nominatimAddressQuery(record),
+      limit: '5',
+      addressdetails: '1',
+      countrycodes: 'us',
+      bounded: '1',
+      viewbox: NOMINATIM_CHICAGO_VIEWBOX,
+    })
+    const response = await fetch(`${NOMINATIM_SEARCH_URL}?${params}`, {
+      headers: {
+        'User-Agent': NOMINATIM_USER_AGENT,
+      },
+    })
+
+    if (!response.ok) return undefined
+
+    const payload = (await response.json()) as Array<{
+      display_name?: string
+      lat?: string
+      lon?: string
+    }>
+
+    for (const candidate of payload) {
+      const latitude = Number(candidate.lat)
+      const longitude = Number(candidate.lon)
+
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        return {
+          label: candidate.display_name ?? record.input,
+          latitude,
+          longitude,
+          ambiguous: payload.length > 1,
+          candidates: payload
+            .slice(0, 5)
+            .map((entry) => entry.display_name)
+            .filter((value): value is string => Boolean(value)),
+        }
+      }
+    }
+
+    return undefined
+  })
 }
 
 function parseCoordinatePair(value?: string) {
@@ -684,7 +785,8 @@ async function lookupFromLocation(
     regions,
     sources: {
       boundaries: 'Generated static boundary files with official-source representative metadata',
-      geocoding: 'U.S. Census Geocoder, Current benchmark/vintage',
+      geocoding:
+        'U.S. Census Geocoder, Current benchmark/vintage; Nominatim fallback for unmatched addresses',
     },
   }
 
@@ -767,6 +869,7 @@ async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
       record.latitude === undefined &&
       record.longitude === undefined,
   )
+  let externalSubrequests = estimateExternalSubrequests(records, addressBatch)
   const output = []
 
   if (addressBatch) {
@@ -775,12 +878,15 @@ async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
 
       for (const [index, record] of records.entries()) {
         try {
-          const location = locations.get(index)
+          let location = locations.get(index)
 
           if (!location) {
-            throw new Error(
-              'No matching Chicago address was found for that street and ZIP.',
-            )
+            location = await getNominatimAddressGeography(record)
+            externalSubrequests += 1
+          }
+
+          if (!location) {
+            throw new Error('No matching address was found for that street and ZIP.')
           }
 
           output.push(
@@ -819,10 +925,7 @@ async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
       records: output,
       usage: {
         records: output.length,
-        estimatedExternalSubrequests: estimateExternalSubrequests(
-          records,
-          addressBatch,
-        ),
+        estimatedExternalSubrequests: externalSubrequests,
       },
       limits: LOOKUP_LIMITS,
     },

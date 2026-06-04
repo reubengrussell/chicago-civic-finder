@@ -1283,7 +1283,7 @@ function FullscreenMap({
             <MapPin size={16} aria-hidden="true" />
             Boundary map
           </span>
-          <h1>Reuben's Region Recombobulator</h1>
+          <h1>Civic Finder</h1>
         </div>
         <fieldset className="layer-checklist">
           <legend>Map layers</legend>
@@ -1756,7 +1756,7 @@ function App() {
             <KeyRound size={16} aria-hidden="true" />
             Access code
           </span>
-          <h1>Reuben's Region Recombobulator</h1>
+          <h1>Civic Finder</h1>
           <label>
             Password
             <input
@@ -1806,7 +1806,7 @@ function App() {
             <div className="intro">
               <span className="eyebrow">
                 <MapPin size={16} aria-hidden="true" />
-                Reuben's Region Recombobulator
+                Civic Finder
               </span>
               <h1>Lookup of ward and congressional district</h1>
             </div>
@@ -2058,7 +2058,7 @@ function App() {
                 with address/latitude/longitude fields. The response returns JSON
                 records plus a small usage object.
               </p>
-              <pre>{`curl -X POST 'https://chicago-civic-finder.pages.dev/api/lookup' \\
+              <pre>{`curl -X POST 'https://civic-finder.pages.dev/api/lookup' \\
   -H 'content-type: application/json' \\
   -H 'x-app-password: change-me' \\
   --data '{"records":["4226 N Ashland Ave","41.945702,-87.668495"]}'`}</pre>

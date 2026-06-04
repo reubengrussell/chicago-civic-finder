@@ -1,5 +1,5 @@
 {
-  "name": "chicago-civic-finder",
+  "name": "civic-finder",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "generate:data": "tsx scripts/generate-official-data.ts",
     "validate:data": "tsx scripts/validate-generated-data.ts",
     "build": "tsc -b && vite build",
-    "deploy:cloudflare": "npm run build && wrangler pages deploy dist --project-name chicago-civic-finder",
+    "deploy:cloudflare": "npm run build && wrangler pages deploy dist --project-name civic-finder",
     "dev:cloudflare": "npm run build && wrangler pages dev dist",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -1,4 +1,4 @@
-# Reuben's Region Recombobulator
+# Civic Finder
 
 A small app for looking up Chicago civic boundaries and representatives from
 either street addresses or latitude/longitude pairs.
@@ -54,13 +54,13 @@ npx wrangler login --browser=false
 Create the Pages project once:
 
 ```bash
-npx wrangler pages project create chicago-civic-finder --production-branch main
+npx wrangler pages project create civic-finder --production-branch main
 ```
 
 Set the production password as a Cloudflare Pages secret:
 
 ```bash
-printf 'change-me' | npx wrangler pages secret put APP_PASSWORD --project-name chicago-civic-finder
+printf 'change-me' | npx wrangler pages secret put APP_PASSWORD --project-name civic-finder
 ```
 
 Deploy:
@@ -78,8 +78,8 @@ Single lookups can be loaded from URL parameters. `address` is treated as one
 freeform address string, so unit commas and apartment text are preserved:
 
 ```text
-https://chicago-civic-finder.pages.dev/?auth=change-me&address=2315%20W%20Giddings%20St%2C%20G
-https://chicago-civic-finder.pages.dev/?auth=change-me&coordinates=41.869%2C-87.784
+https://civic-finder.pages.dev/?auth=change-me&address=2315%20W%20Giddings%20St%2C%20G
+https://civic-finder.pages.dev/?auth=change-me&coordinates=41.869%2C-87.784
 ```
 
 Supported aliases are `street`, `q`, or `query` for address lookup; `coords`
@@ -91,7 +91,7 @@ for coordinate lookup; and `lat`/`lng`, `lat`/`lon`, or
 Bulk lookups use `POST /api/lookup` and return JSON records by default:
 
 ```bash
-curl -X POST 'https://chicago-civic-finder.pages.dev/api/lookup' \
+curl -X POST 'https://civic-finder.pages.dev/api/lookup' \
   -H 'content-type: application/json' \
   -H 'x-app-password: change-me' \
   --data '{"records":["4226 N Ashland Ave","41.945702,-87.668495"],"defaultZip":"60613"}'

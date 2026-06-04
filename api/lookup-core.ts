@@ -456,7 +456,7 @@ async function getReverseLocationLabel(latitude: number, longitude: number) {
       `https://nominatim.openstreetmap.org/reverse?${params}`,
       {
         headers: {
-          'User-Agent': 'ReubensRegionRecombobulator/1.0',
+          'User-Agent': 'CivicFinder/1.0',
         },
       },
     )

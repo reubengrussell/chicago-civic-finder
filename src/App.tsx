@@ -103,6 +103,9 @@ type BoundaryConfig = {
 }
 type BatchRow = {
   [key: string]: string
+  contactName: string
+  firstName: string
+  lastName: string
   input: string
   status: 'ok' | 'error'
   matchedAddress: string
@@ -136,6 +139,10 @@ type LookupRequestRecord =
 type LookupWithExport = LookupResult & {
   csvRow?: BatchRow
 }
+type BatchInput = {
+  record: LookupRequestRecord
+  sourceRow?: Record<string, string>
+}
 type UrlLookup = {
   mode: 'address' | 'coordinates'
   displayValue: string
@@ -149,9 +156,16 @@ type BulkApiRecord = Partial<LookupResult> & {
 }
 type UsageLimits = {
   cloudflareRequestsPerDay: number
+  anonymousCloudflareRequestsPerDay: number
+  authenticatedCloudflareRequestsPerDay: number
   maxRecordsPerRequest: number
+  anonymousMaxRecordsPerRequest: number
+  authenticatedMaxRecordsPerRequest: number
+  maxEstimatedExternalSubrequestsPerRequest: number
   estimatedIpRecordsPerDay: number
   estimatedIpRecordsPerHour: number
+  authenticatedEstimatedKeyRecordsPerDay: number
+  authenticatedEstimatedKeyRecordsPerHour: number
   cpuMsPerRequestFree: number
   memoryMbPerIsolate: number
   externalSubrequestsPerAddress: number
@@ -164,12 +178,45 @@ type LatestApiUsage = {
   records?: number
   estimatedExternalSubrequests?: number
   wallMs?: number
+  accessTier?: 'anonymous' | 'authenticated'
 }
 type UsageSummary = {
   date: string
   localRecords: number
   limits: UsageLimits
   latestApi?: LatestApiUsage
+}
+type AnalyticsWindow = {
+  requests: number
+  records: number
+  errors: number
+}
+type AnalyticsEvent = {
+  id: string
+  timestamp: string
+  method: string
+  path: string
+  status: number
+  accessTier: 'anonymous' | 'authenticated'
+  recordsRequested: number
+  recordsReturned: number
+  errorRecords: number
+  estimatedExternalSubrequests?: number
+  wallMs: number
+  ip: string
+  country?: string
+  userAgent?: string
+  inputs: string[]
+  matchedAddresses: string[]
+}
+type AnalyticsPayload = {
+  generatedAt: string
+  windows: {
+    last24h: AnalyticsWindow
+    last7d: AnalyticsWindow
+    last30d: AnalyticsWindow
+  }
+  recent: AnalyticsEvent[]
 }
 type RepExportKey =
   | 'ward'
@@ -184,9 +231,16 @@ type RepInfoKey = 'name' | 'phone' | 'email' | 'address' | 'photo' | 'contactUrl
 const MAP_COLORS = ['#267c5a', '#2563eb', '#c2410c', '#7c3aed']
 const DEFAULT_USAGE_LIMITS: UsageLimits = {
   cloudflareRequestsPerDay: 100000,
-  maxRecordsPerRequest: 20,
-  estimatedIpRecordsPerDay: 100000,
-  estimatedIpRecordsPerHour: 4167,
+  anonymousCloudflareRequestsPerDay: 50000,
+  authenticatedCloudflareRequestsPerDay: 50000,
+  maxRecordsPerRequest: 1000,
+  anonymousMaxRecordsPerRequest: 50,
+  authenticatedMaxRecordsPerRequest: 1000,
+  maxEstimatedExternalSubrequestsPerRequest: 40,
+  estimatedIpRecordsPerDay: 500,
+  estimatedIpRecordsPerHour: 100,
+  authenticatedEstimatedKeyRecordsPerDay: 10000,
+  authenticatedEstimatedKeyRecordsPerHour: 1000,
   cpuMsPerRequestFree: 10,
   memoryMbPerIsolate: 128,
   externalSubrequestsPerAddress: 1,
@@ -303,6 +357,9 @@ const SINGLE_RESULT_ROWS: Array<{
 const ALL_REP_EXPORT_KEYS = REP_EXPORT_OPTIONS.map((option) => option.key)
 const ALL_REP_INFO_KEYS = REP_INFO_OPTIONS.map((option) => option.key)
 const BASE_CSV_COLUMNS = [
+  'contactName',
+  'firstName',
+  'lastName',
   'input',
   'status',
   'matchedAddress',
@@ -352,6 +409,16 @@ function rowsToCsv(
   ].join('\n')
 }
 
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = []
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+
+  return chunks
+}
+
 function downloadText(filename: string, text: string) {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }))
   const link = document.createElement('a')
@@ -363,6 +430,22 @@ function downloadText(filename: string, text: string) {
 
 function outputFilename(filename: string) {
   return filename.replace(/\.[^.]+$/, '') + '-lookups.csv'
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function inputPreview(inputs: string[]) {
+  if (!inputs.length) return '-'
+
+  const preview = inputs.slice(0, 3).join(' | ')
+  return inputs.length > 3 ? `${preview} | +${inputs.length - 3} more` : preview
 }
 
 function todayKey() {
@@ -444,6 +527,36 @@ function representativeCsvFields(regions?: Record<string, RegionInfo | undefined
   )
 }
 
+function bestContactNameColumn(rows: Record<string, string>[]) {
+  const columns = Object.keys(rows[0] ?? {})
+  const usableColumns = columns.filter(
+    (column) => !/address|street|zip|email|phone/i.test(column),
+  )
+
+  return (
+    usableColumns.find((column) => /sort\s*name/i.test(column)) ??
+    usableColumns.find((column) => /display\s*name|contact\s*name/i.test(column)) ??
+    usableColumns.find(
+      (column) =>
+        /\bname\b|contact/i.test(column) &&
+        rows.some((row) => String(row[column] ?? '').includes(',')),
+    )
+  )
+}
+
+function contactNameFields(sourceRow?: Record<string, string>) {
+  const contactName = sourceRow
+    ? stringValue(sourceRow[bestContactNameColumn([sourceRow]) ?? '']) ?? ''
+    : ''
+  const commaIndex = contactName.indexOf(',')
+  const lastName =
+    commaIndex >= 0 ? contactName.slice(0, commaIndex).trim() : ''
+  const firstName =
+    commaIndex >= 0 ? contactName.slice(commaIndex + 1).trim() : ''
+
+  return { contactName, firstName, lastName }
+}
+
 function singleResultRegions(result: LookupResult) {
   return {
     ward: result.regions?.ward ?? {
@@ -473,6 +586,9 @@ function singleResultRegions(result: LookupResult) {
 function rowFromRecord(record: BulkApiRecord): BatchRow {
   if (record.status === 'error') {
     return {
+      contactName: '',
+      firstName: '',
+      lastName: '',
       input: record.input,
       status: 'error',
       matchedAddress: record.matchedAddress ?? record.locationLabel ?? '',
@@ -494,6 +610,9 @@ function rowFromRecord(record: BulkApiRecord): BatchRow {
   }
 
   return {
+    contactName: '',
+    firstName: '',
+    lastName: '',
     input: record.input,
     status: 'ok',
     matchedAddress: record.matchedAddress ?? record.locationLabel ?? '',
@@ -1516,8 +1635,7 @@ function App() {
   )
   const [csvInfoKeys, setCsvInfoKeys] = useState<RepInfoKey[]>(ALL_REP_INFO_KEYS)
   const [password, setPassword] = useState(initialValues.password)
-  const [passwordInput, setPasswordInput] = useState('')
-  const [unlocked, setUnlocked] = useState(() => Boolean(initialValues.password))
+  const [passwordInput, setPasswordInput] = useState(initialValues.password)
   const [result, setResult] = useState<LookupWithExport | null>(null)
   const [mapSeedResults, setMapSeedResults] = useState<LookupResult[]>([])
   const [batchRows, setBatchRows] = useState<BatchRow[]>([])
@@ -1525,12 +1643,25 @@ function App() {
     ...storedUsage(),
     limits: DEFAULT_USAGE_LIMITS,
   }))
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
+  const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null)
+  const [analyticsError, setAnalyticsError] = useState('')
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const csvOutput = rowsToCsv(batchRows, csvRepKeys, csvInfoKeys)
   const singleExportCsv = result?.csvRow
     ? rowsToCsv([result.csvRow], csvRepKeys, csvInfoKeys)
     : ''
+  const currentMaxRecordsPerRequest = password
+    ? usage.limits.authenticatedMaxRecordsPerRequest
+    : usage.limits.anonymousMaxRecordsPerRequest
+  const currentDailyLimit = password
+    ? usage.limits.authenticatedEstimatedKeyRecordsPerDay
+    : usage.limits.estimatedIpRecordsPerDay
+  const currentHourlyLimit = password
+    ? usage.limits.authenticatedEstimatedKeyRecordsPerHour
+    : usage.limits.estimatedIpRecordsPerHour
 
   useEffect(() => {
     fetch('/api/usage')
@@ -1572,12 +1703,60 @@ function App() {
     )
   }
 
-  function handleLogin(event: FormEvent) {
+  function handleApiKeySubmit(event: FormEvent) {
     event.preventDefault()
     const nextPassword = passwordInput.trim()
     setPassword(nextPassword)
-    setUnlocked(Boolean(nextPassword))
-    window.sessionStorage.setItem('chicago-civic-password', nextPassword)
+    if (nextPassword) {
+      window.sessionStorage.setItem('chicago-civic-password', nextPassword)
+    } else {
+      window.sessionStorage.removeItem('chicago-civic-password')
+    }
+  }
+
+  function clearApiKey() {
+    setPassword('')
+    setPasswordInput('')
+    setAnalytics(null)
+    window.sessionStorage.removeItem('chicago-civic-password')
+  }
+
+  async function loadAnalytics() {
+    if (!password) {
+      setAnalyticsError('Enter an API key to view analytics.')
+      return
+    }
+
+    setAnalyticsLoading(true)
+    setAnalyticsError('')
+
+    try {
+      const response = await fetch('/api/analytics', {
+        headers: { 'x-app-password': password },
+      })
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Analytics could not be loaded.')
+      }
+
+      setAnalytics(payload as AnalyticsPayload)
+    } catch (error) {
+      setAnalyticsError(
+        error instanceof Error ? error.message : 'Analytics could not be loaded.',
+      )
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }
+
+  function toggleAnalytics() {
+    const nextOpen = !analyticsOpen
+    setAnalyticsOpen(nextOpen)
+
+    if (nextOpen && !analytics) {
+      void loadAnalytics()
+    }
   }
 
   function bestAddressColumn(rows: Record<string, string>[]) {
@@ -1609,44 +1788,67 @@ function App() {
   }
 
   const lookupBulk = useCallback(async (records: LookupRequestRecord[], defaultZip: string) => {
-    const response = await fetch('/api/lookup', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(password ? { 'x-app-password': password } : {}),
-      },
-      body: JSON.stringify({
-        records,
-        defaultZip: defaultZip.trim() || undefined,
-      }),
-    })
-    const payload = await response.json()
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        window.sessionStorage.removeItem('chicago-civic-password')
-        setPassword('')
-        setPasswordInput('')
-        setUnlocked(false)
-      }
-
-      throw new Error(payload.error ?? 'The bulk lookup failed.')
+    const chunkSize = Math.max(1, currentMaxRecordsPerRequest)
+    const attempts: LookupAttempt[] = []
+    const combinedUsage = {
+      records: 0,
+      estimatedExternalSubrequests: 0,
+      wallMs: 0,
     }
 
-    const attempts = (payload.records as BulkApiRecord[]).map((record) => ({
-      lookup: lookupFromRecord(record),
-      row: rowFromRecord(record),
-    }))
-    addLocalUsage(attempts.length)
-    setLatestApiUsage(payload.usage)
+    for (const chunk of chunkArray(records, chunkSize)) {
+      const response = await fetch('/api/lookup', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(password ? { 'x-app-password': password } : {}),
+        },
+        body: JSON.stringify({
+          records: chunk,
+          defaultZip: defaultZip.trim() || undefined,
+        }),
+      })
+      const payload = await response.json()
 
-    return attempts satisfies LookupAttempt[]
-  }, [addLocalUsage, password, setLatestApiUsage])
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.sessionStorage.removeItem('chicago-civic-password')
+          setPassword('')
+          setPasswordInput('')
+        }
+
+        throw new Error(payload.error ?? 'The bulk lookup failed.')
+      }
+
+      attempts.push(
+        ...(payload.records as BulkApiRecord[]).map((record) => ({
+          lookup: lookupFromRecord(record),
+          row: rowFromRecord(record),
+        })),
+      )
+
+      const latestUsage = payload.usage as LatestApiUsage | undefined
+      combinedUsage.records += latestUsage?.records ?? 0
+      combinedUsage.estimatedExternalSubrequests +=
+        latestUsage?.estimatedExternalSubrequests ?? 0
+      combinedUsage.wallMs += latestUsage?.wallMs ?? 0
+    }
+
+    addLocalUsage(attempts.length)
+    setLatestApiUsage(combinedUsage)
+
+    return attempts
+  }, [
+    addLocalUsage,
+    currentMaxRecordsPerRequest,
+    password,
+    setLatestApiUsage,
+  ])
 
   useEffect(() => {
     const urlLookup = initialValues.lookup
 
-    if (!unlocked || !urlLookup || autoLookupStarted.current) return
+    if (!urlLookup || autoLookupStarted.current) return
     autoLookupStarted.current = true
     setLoading(true)
     setError('')
@@ -1672,18 +1874,23 @@ function App() {
         setError(error instanceof Error ? error.message : 'The URL lookup failed.')
       })
       .finally(() => setLoading(false))
-  }, [initialValues.lookup, lookupBulk, unlocked])
+  }, [initialValues.lookup, lookupBulk])
 
-  function batchInputs() {
+  function batchInputs(): BatchInput[] {
     if (fileRows.length) {
       const column = bestAddressColumn(fileRows)
-      return fileRows.map((row) => String(row[column] ?? '').trim()).filter(Boolean)
+      return fileRows.flatMap((row) => {
+        const record = String(row[column] ?? '').trim()
+
+        return record ? [{ record, sourceRow: row }] : []
+      })
     }
 
     return addressList
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
+      .map((record) => ({ record }))
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -1698,14 +1905,18 @@ function App() {
       let attempts: LookupAttempt[]
 
       try {
-        attempts = await lookupBulk(inputs, '')
+        attempts = await lookupBulk(inputs.map((input) => input.record), '')
       } catch (error) {
         setLoading(false)
         setError(error instanceof Error ? error.message : 'The bulk lookup failed.')
         return
       }
 
-      const rows = attempts.map((attempt) => attempt.row)
+      const rows = attempts.map((attempt, index) => ({
+        ...attempt.row,
+        ...contactNameFields(inputs[index]?.sourceRow),
+      }))
+      attempts = attempts.map((attempt, index) => ({ ...attempt, row: rows[index] }))
       const singleManualAddress = !fileRows.length && inputs.length === 1
       setBatchRows(singleManualAddress ? [] : rows)
       const firstOk = attempts.find((attempt) => attempt.lookup)
@@ -1746,31 +1957,6 @@ function App() {
       setError(error instanceof Error ? error.message : 'The lookup failed.')
       return
     }
-  }
-
-  if (!unlocked) {
-    return (
-      <main className="login-shell">
-        <form className="login-card" onSubmit={handleLogin}>
-          <span className="eyebrow">
-            <KeyRound size={16} aria-hidden="true" />
-            Access code
-          </span>
-          <h1>Civic Finder</h1>
-          <label>
-            Password
-            <input
-              value={passwordInput}
-              onChange={(event) => setPasswordInput(event.target.value)}
-              type="password"
-              autoComplete="current-password"
-              required
-            />
-          </label>
-          <button type="submit">Continue</button>
-        </form>
-      </main>
-    )
   }
 
   return (
@@ -2020,6 +2206,31 @@ function App() {
           </section>
 
           <section className="page-footer-panel" aria-label="Usage and API access">
+            <form className="api-key-panel" onSubmit={handleApiKeySubmit}>
+              <span className="eyebrow">
+                <KeyRound size={16} aria-hidden="true" />
+                {password ? 'Authenticated access' : 'Public access'}
+              </span>
+              <label>
+                API key
+                <input
+                  value={passwordInput}
+                  onChange={(event) => setPasswordInput(event.target.value)}
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="optional"
+                />
+              </label>
+              <div className="api-key-actions">
+                <button type="submit">{password ? 'Update key' : 'Use key'}</button>
+                {password && (
+                  <button type="button" onClick={clearApiKey}>
+                    Clear
+                  </button>
+                )}
+              </div>
+            </form>
+
             <div className="usage-panel">
               <div>
                 <span className="eyebrow">
@@ -2052,26 +2263,123 @@ function App() {
             <div className="api-overview">
               <span className="label">API access</span>
               <p>
-                Send a POST request to <code>/api/lookup</code> with
-                <code> x-app-password</code> and a JSON <code>records</code> array.
+                Send a POST request to <code>/api/lookup</code> with a JSON{' '}
+                <code>records</code> array. Add <code>x-app-password</code> when
+                you have an issued API key.
                 Records can be street-address strings, coordinate strings, or objects
                 with address/latitude/longitude fields. The response returns JSON
                 records plus a small usage object.
               </p>
-              <pre>{`curl -X POST 'https://civic-finder.pages.dev/api/lookup' \\
+              <pre>{`curl -X POST '/api/lookup' \\
   -H 'content-type: application/json' \\
-  -H 'x-app-password: change-me' \\
   --data '{"records":["4226 N Ashland Ave","41.945702,-87.668495"]}'`}</pre>
               <p>
-                Current app limits: {usage.limits.maxRecordsPerRequest} records per
-                request, {usage.limits.estimatedIpRecordsPerHour.toLocaleString()}{' '}
-                records per IP per hour,{' '}
-                {usage.limits.estimatedIpRecordsPerDay.toLocaleString()} records per IP
-                per day, and{' '}
+                Current {password ? 'authenticated' : 'public'} limits:{' '}
+                {currentMaxRecordsPerRequest} records per request,{' '}
+                {currentHourlyLimit.toLocaleString()} records per hour,{' '}
+                {currentDailyLimit.toLocaleString()} records per day, and{' '}
+                {usage.limits.anonymousCloudflareRequestsPerDay.toLocaleString()} of{' '}
                 {usage.limits.cloudflareRequestsPerDay.toLocaleString()} Cloudflare
-                Function requests per day across the app.
+                Free daily Function requests reserved for public traffic.
               </p>
+              <div className="analytics-actions">
+                <button type="button" onClick={toggleAnalytics}>
+                  <BarChart3 size={16} aria-hidden="true" />
+                  {analyticsOpen ? 'Hide analytics' : 'Show analytics'}
+                </button>
+                {analyticsOpen && password && (
+                  <button
+                    type="button"
+                    onClick={() => void loadAnalytics()}
+                    disabled={analyticsLoading}
+                  >
+                    {analyticsLoading ? 'Refreshing' : 'Refresh'}
+                  </button>
+                )}
+              </div>
             </div>
+
+            {analyticsOpen && (
+              <div className="analytics-panel">
+                {!password && (
+                  <p className="analytics-note">Enter an API key to view analytics.</p>
+                )}
+                {analyticsError && <p className="error">{analyticsError}</p>}
+                {analyticsLoading && !analytics && (
+                  <p className="analytics-note">Loading analytics...</p>
+                )}
+                {analytics && (
+                  <>
+                    <div className="analytics-summary">
+                      {[
+                        ['24 hours', analytics.windows.last24h],
+                        ['7 days', analytics.windows.last7d],
+                        ['30 days', analytics.windows.last30d],
+                      ].map(([label, window]) => {
+                        const stats = window as AnalyticsWindow
+
+                        return (
+                          <div key={label as string}>
+                            <span className="label">{label as string}</span>
+                            <strong>{stats.requests.toLocaleString()}</strong>
+                            <span>
+                              {stats.records.toLocaleString()} records,{' '}
+                              {stats.errors.toLocaleString()} errors
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="analytics-table-wrap">
+                      <table className="analytics-table">
+                        <thead>
+                          <tr>
+                            <th>Time</th>
+                            <th>Request</th>
+                            <th>Status</th>
+                            <th>Records</th>
+                            <th>Source</th>
+                            <th>Inputs</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics.recent.length ? (
+                            analytics.recent.map((event) => (
+                              <tr key={event.id}>
+                                <td>{formatDateTime(event.timestamp)}</td>
+                                <td>
+                                  {event.method} {event.path}
+                                </td>
+                                <td>{event.status}</td>
+                                <td>{event.recordsRequested.toLocaleString()}</td>
+                                <td>
+                                  <span>{event.userAgent ?? '-'}</span>
+                                  <small>
+                                    {event.ip}
+                                    {event.country ? `, ${event.country}` : ''}
+                                  </small>
+                                </td>
+                                <td title={event.inputs.join(' | ')}>
+                                  {inputPreview(event.inputs)}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6}>No recent lookup requests recorded.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="analytics-note">
+                      Updated {formatDateTime(analytics.generatedAt)}. Recent request
+                      details are retained for about 35 days.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
           </section>
         </div>
       )}

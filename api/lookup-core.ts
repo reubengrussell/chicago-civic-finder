@@ -54,7 +54,9 @@ export type BoundaryLoader = () => Promise<
 export type LookupInput = {
   method: string
   appPassword?: string
+  appKeys?: string
   requestPassword?: string
+  accessTier?: AccessTier
   params: URLSearchParams
   body?: unknown
   loadBoundaries: BoundaryLoader
@@ -87,17 +89,42 @@ type LookupBodyRecord =
       longitude?: string | number
     }
 
-const MAX_RECORDS_PER_REQUEST = 20
+type AccessTier = 'anonymous' | 'authenticated'
+
+const CLOUDFLARE_REQUESTS_PER_DAY = 100000
+const ANONYMOUS_REQUEST_SHARE = 0.5
+const ANONYMOUS_MAX_RECORDS_PER_REQUEST = 50
+const AUTHENTICATED_MAX_RECORDS_PER_REQUEST = 1000
+const ANONYMOUS_ESTIMATED_IP_RECORDS_PER_HOUR = 100
+const ANONYMOUS_ESTIMATED_IP_RECORDS_PER_DAY = 500
+const AUTHENTICATED_ESTIMATED_KEY_RECORDS_PER_HOUR = 1000
+const AUTHENTICATED_ESTIMATED_KEY_RECORDS_PER_DAY = 10000
+const MAX_ESTIMATED_EXTERNAL_SUBREQUESTS_PER_REQUEST = 40
+const LOOKUP_RECORD_CHUNK_SIZE = 50
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
 const NOMINATIM_USER_AGENT = 'CivicFinder/1.0'
 const NOMINATIM_CHICAGO_VIEWBOX = '-87.95,42.05,-87.45,41.55'
 const NOMINATIM_REQUEST_SPACING_MS = 1100
 
 export const LOOKUP_LIMITS = {
-  cloudflareRequestsPerDay: 100000,
-  maxRecordsPerRequest: MAX_RECORDS_PER_REQUEST,
-  estimatedIpRecordsPerDay: 100000,
-  estimatedIpRecordsPerHour: Math.ceil(100000 / 24),
+  cloudflareRequestsPerDay: CLOUDFLARE_REQUESTS_PER_DAY,
+  anonymousCloudflareRequestsPerDay: Math.floor(
+    CLOUDFLARE_REQUESTS_PER_DAY * ANONYMOUS_REQUEST_SHARE,
+  ),
+  authenticatedCloudflareRequestsPerDay: Math.ceil(
+    CLOUDFLARE_REQUESTS_PER_DAY * (1 - ANONYMOUS_REQUEST_SHARE),
+  ),
+  maxRecordsPerRequest: AUTHENTICATED_MAX_RECORDS_PER_REQUEST,
+  anonymousMaxRecordsPerRequest: ANONYMOUS_MAX_RECORDS_PER_REQUEST,
+  authenticatedMaxRecordsPerRequest: AUTHENTICATED_MAX_RECORDS_PER_REQUEST,
+  maxEstimatedExternalSubrequestsPerRequest:
+    MAX_ESTIMATED_EXTERNAL_SUBREQUESTS_PER_REQUEST,
+  estimatedIpRecordsPerDay: ANONYMOUS_ESTIMATED_IP_RECORDS_PER_DAY,
+  estimatedIpRecordsPerHour: ANONYMOUS_ESTIMATED_IP_RECORDS_PER_HOUR,
+  authenticatedEstimatedKeyRecordsPerDay:
+    AUTHENTICATED_ESTIMATED_KEY_RECORDS_PER_DAY,
+  authenticatedEstimatedKeyRecordsPerHour:
+    AUTHENTICATED_ESTIMATED_KEY_RECORDS_PER_HOUR,
   cpuMsPerRequestFree: 10,
   memoryMbPerIsolate: 128,
   externalSubrequestsPerAddress: 1,
@@ -105,6 +132,34 @@ export const LOOKUP_LIMITS = {
   cloudflareExternalSubrequestsPerInvocation: 50,
   simultaneousOpenConnections: 6,
   workerLogsEventsPerDayFree: 200000,
+}
+
+function configuredApiKeys(input: LookupInput) {
+  return [input.appPassword, input.appKeys]
+    .flatMap((value) => value?.split(',') ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
+function isAuthenticated(input: LookupInput) {
+  if (input.accessTier) return input.accessTier === 'authenticated'
+
+  const keys = configuredApiKeys(input)
+  if (!keys.length || !input.requestPassword) return false
+
+  return keys.includes(input.requestPassword)
+}
+
+function invalidApiKey(input: LookupInput) {
+  const keys = configuredApiKeys(input)
+
+  return Boolean(keys.length && input.requestPassword && !isAuthenticated(input))
+}
+
+function maxRecordsForTier(tier: AccessTier) {
+  return tier === 'authenticated'
+    ? AUTHENTICATED_MAX_RECORDS_PER_REQUEST
+    : ANONYMOUS_MAX_RECORDS_PER_REQUEST
 }
 
 function stringValue(value: unknown) {
@@ -325,6 +380,16 @@ function csvValue(value: string) {
 
 function csvRow(values: string[]) {
   return values.map(csvValue).join(',')
+}
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = []
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+
+  return chunks
 }
 
 function addressLooksComplete(address: string) {
@@ -840,29 +905,25 @@ function estimateExternalSubrequests(records: ParsedLookup[], usedAddressBatch: 
   )
 }
 
-async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
-  const records = bulkRecords(input.body, input.params.get('zip')?.trim())
+function estimateRequestExternalSubrequests(records: ParsedLookup[]) {
+  const addressBatch = records.every(
+    (record) =>
+      record.street &&
+      record.latitude === undefined &&
+      record.longitude === undefined,
+  )
 
-  if (!records.length) {
-    return {
-      status: 400,
-      body: {
-        error:
-          'Send a JSON body with a records array of addresses or coordinate pairs.',
-      },
-    }
+  if (addressBatch) {
+    return Math.ceil(records.length / LOOKUP_RECORD_CHUNK_SIZE)
   }
 
-  if (records.length > MAX_RECORDS_PER_REQUEST) {
-    return {
-      status: 413,
-      body: {
-        error: `Send ${MAX_RECORDS_PER_REQUEST} records or fewer per request.`,
-        limits: LOOKUP_LIMITS,
-      },
-    }
-  }
+  return estimateExternalSubrequests(records, false)
+}
 
+async function runBulkLookupChunk(
+  records: ParsedLookup[],
+  loadBoundaries: BoundaryLoader,
+) {
   const addressBatch = records.every(
     (record) =>
       record.street &&
@@ -892,7 +953,7 @@ async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
           output.push(
             recordFromLookup(
               record.input,
-              await lookupFromLocation(location, input.loadBoundaries),
+              await lookupFromLocation(location, loadBoundaries),
             ),
           )
         } catch (error) {
@@ -910,13 +971,66 @@ async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
         output.push(
           recordFromLookup(
             record.input,
-            await lookupOne(record, input.loadBoundaries),
+            await lookupOne(record, loadBoundaries),
           ),
         )
       } catch (error) {
         output.push(errorRecord(record.input, error))
       }
     }
+  }
+
+  return { output, externalSubrequests }
+}
+
+async function runBulkLookup(
+  input: LookupInput,
+  accessTier: AccessTier,
+): Promise<LookupResponse> {
+  const records = bulkRecords(input.body, input.params.get('zip')?.trim())
+  const maxRecords = maxRecordsForTier(accessTier)
+
+  if (!records.length) {
+    return {
+      status: 400,
+      body: {
+        error:
+          'Send a JSON body with a records array of addresses or coordinate pairs.',
+      },
+    }
+  }
+
+  if (records.length > maxRecords) {
+    return {
+      status: 413,
+      body: {
+        error: `Send ${maxRecords} records or fewer per request for ${accessTier} access.`,
+        limits: LOOKUP_LIMITS,
+      },
+    }
+  }
+
+  const estimatedExternalSubrequests = estimateRequestExternalSubrequests(records)
+
+  if (
+    estimatedExternalSubrequests > MAX_ESTIMATED_EXTERNAL_SUBREQUESTS_PER_REQUEST
+  ) {
+    return {
+      status: 413,
+      body: {
+        error: `Split this lookup into smaller requests. It is estimated to need ${estimatedExternalSubrequests} external subrequests, above the Cloudflare Free safety cap of ${MAX_ESTIMATED_EXTERNAL_SUBREQUESTS_PER_REQUEST}.`,
+        limits: LOOKUP_LIMITS,
+      },
+    }
+  }
+
+  const output = []
+  let externalSubrequests = 0
+
+  for (const chunk of chunkArray(records, LOOKUP_RECORD_CHUNK_SIZE)) {
+    const result = await runBulkLookupChunk(chunk, input.loadBoundaries)
+    output.push(...result.output)
+    externalSubrequests += result.externalSubrequests
   }
 
   return {
@@ -926,6 +1040,7 @@ async function runBulkLookup(input: LookupInput): Promise<LookupResponse> {
       usage: {
         records: output.length,
         estimatedExternalSubrequests: externalSubrequests,
+        accessTier,
       },
       limits: LOOKUP_LIMITS,
     },
@@ -941,15 +1056,19 @@ export async function runLookup(input: LookupInput): Promise<LookupResponse> {
     }
   }
 
-  if (input.appPassword && input.requestPassword !== input.appPassword) {
+  if (invalidApiKey(input)) {
     return {
       status: 401,
-      body: { error: 'Enter the password to use this app.' },
+      body: { error: 'The API key was not recognized.' },
     }
   }
 
+  const accessTier: AccessTier = isAuthenticated(input)
+    ? 'authenticated'
+    : 'anonymous'
+
   if (input.method === 'POST') {
-    return runBulkLookup(input)
+    return runBulkLookup(input, accessTier)
   }
 
   const street = input.params.get('street')?.trim()

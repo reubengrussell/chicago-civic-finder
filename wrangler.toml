@@ -1,3 +1,7 @@
 name = "civic-finder"
 compatibility_date = "2026-05-27"
 pages_build_output_dir = "dist"
+
+[[kv_namespaces]]
+binding = "ANALYTICS_KV"
+id = "4ad80b52db5d49a29e4720eeb4e922a1"

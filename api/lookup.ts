@@ -43,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const lookup = await runLookup({
     method: req.method ?? 'GET',
     appPassword: process.env.APP_PASSWORD,
+    appKeys: process.env.APP_KEYS,
     requestPassword: requestPassword(req),
     params: new URLSearchParams(
       Object.entries(req.query).flatMap(([key, value]) => {

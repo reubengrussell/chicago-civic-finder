@@ -1,14 +1,18 @@
 import { BOUNDARIES, runLookup } from '../../api/lookup-core.js'
 import type { BoundaryLoader } from '../../api/lookup-core.js'
-import { callerIp, checkIpQuota, quotaHeaders, requestWeight } from './quota.js'
+import { recordLookupAnalytics } from './analytics-store.js'
+import type { AnalyticsEnv } from './analytics-store.js'
+import { callerIp, checkQuota, quotaHeaders, requestWeight } from './quota.js'
 
-type PagesEnv = {
+type PagesEnv = AnalyticsEnv & {
   APP_PASSWORD?: string
+  APP_KEYS?: string
 }
 
 type PagesContext = {
   request: Request
   env: PagesEnv
+  waitUntil?: (promise: Promise<unknown>) => void
 }
 
 let boundariesPromise: ReturnType<BoundaryLoader> | undefined
@@ -52,22 +56,58 @@ function requestPassword(request: Request, url: URL) {
   )
 }
 
+function configuredApiKeys(env: PagesEnv) {
+  return [env.APP_PASSWORD, env.APP_KEYS]
+    .flatMap((value) => value?.split(',') ?? [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
+function accessTier(env: PagesEnv, password?: string) {
+  const keys = configuredApiKeys(env)
+
+  if (!password) return { tier: 'anonymous' as const }
+  if (keys.includes(password)) return { tier: 'authenticated' as const, key: password }
+
+  return { tier: 'anonymous' as const, invalidKey: true }
+}
+
 export async function onRequest(context: PagesContext) {
   const startedAt = performance.now()
   const url = new URL(context.request.url)
+  const password = requestPassword(context.request, url)
+  const access = accessTier(context.env, password)
+
+  if (access.invalidKey) {
+    return Response.json(
+      {
+        error: 'The API key was not recognized.',
+      },
+      {
+        status: 401,
+        headers: PRIVATE_HEADERS,
+      },
+    )
+  }
+
   const body =
     context.request.method === 'POST'
       ? await context.request.json().catch(() => undefined)
       : undefined
-  const quota = checkIpQuota(
-    callerIp(context.request),
-    requestWeight(context.request.method, body),
-  )
+  const quota = checkQuota({
+    tier: access.tier,
+    ip: callerIp(context.request),
+    key: access.key,
+    weight: requestWeight(context.request.method, body),
+  })
 
   if (quota.blocked) {
     return Response.json(
       {
-        error: 'Too many lookups from this IP. Try again after the reset time.',
+        error:
+          quota.tier === 'authenticated'
+            ? 'Too many lookups for this API key. Try again after the reset time.'
+            : 'Too many public lookups from this IP. Try again after the reset time.',
       },
       {
         status: 429,
@@ -86,12 +126,25 @@ export async function onRequest(context: PagesContext) {
   const lookup = await runLookup({
     method: context.request.method,
     appPassword: context.env.APP_PASSWORD,
-    requestPassword: requestPassword(context.request, url),
+    appKeys: context.env.APP_KEYS,
+    requestPassword: password,
+    accessTier: access.tier,
     params: url.searchParams,
     body,
     loadBoundaries: loadBoundaries(context.request),
   })
   const wallMs = Math.round((performance.now() - startedAt) * 10) / 10
+  context.waitUntil?.(
+    recordLookupAnalytics({
+      env: context.env,
+      request: context.request,
+      url,
+      body,
+      lookup,
+      wallMs,
+      accessTier: access.tier,
+    }),
+  )
   const responseBody =
     'usage' in lookup.body && lookup.body.usage
       ? {

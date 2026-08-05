@@ -57,10 +57,19 @@ Create the Pages project once:
 npx wrangler pages project create civic-finder --production-branch main
 ```
 
-Set the production password as a Cloudflare Pages secret:
+Optionally set issued API keys as a Cloudflare Pages secret. Without this
+secret the app still runs publicly, but every request is treated as anonymous.
+Multiple keys can be comma-separated:
 
 ```bash
-printf 'change-me' | npx wrangler pages secret put APP_PASSWORD --project-name civic-finder
+printf 'partner-key-1,partner-key-2' | npx wrangler pages secret put APP_KEYS --project-name civic-finder
+```
+
+Create the analytics KV namespace once and add the generated ID to
+`wrangler.toml`:
+
+```bash
+npx wrangler kv namespace create ANALYTICS_KV
 ```
 
 Deploy:
@@ -70,7 +79,9 @@ npm run deploy:cloudflare
 ```
 
 Cloudflare Pages uses `functions/api/lookup.ts` for `/api/lookup` and serves
-the static boundary files from `public/geojson`.
+the static boundary files from `public/geojson`. This repository is intended to
+be self-hosted; any maintainer-hosted Pages deployment should be treated as a
+best-effort demo or partner endpoint, not a supported public API contract.
 
 ## Shareable Lookup Links
 
@@ -78,8 +89,8 @@ Single lookups can be loaded from URL parameters. `address` is treated as one
 freeform address string, so unit commas and apartment text are preserved:
 
 ```text
-https://civic-finder.pages.dev/?auth=change-me&address=2315%20W%20Giddings%20St%2C%20G
-https://civic-finder.pages.dev/?auth=change-me&coordinates=41.869%2C-87.784
+https://YOUR_PAGES_HOST/?address=2315%20W%20Giddings%20St%2C%20G
+https://YOUR_PAGES_HOST/?coordinates=41.869%2C-87.784
 ```
 
 Supported aliases are `street`, `q`, or `query` for address lookup; `coords`
@@ -91,20 +102,41 @@ for coordinate lookup; and `lat`/`lng`, `lat`/`lon`, or
 Bulk lookups use `POST /api/lookup` and return JSON records by default:
 
 ```bash
-curl -X POST 'https://civic-finder.pages.dev/api/lookup' \
+curl -X POST 'https://YOUR_PAGES_HOST/api/lookup' \
   -H 'content-type: application/json' \
-  -H 'x-app-password: change-me' \
   --data '{"records":["4226 N Ashland Ave","41.945702,-87.668495"],"defaultZip":"60613"}'
+```
+
+Issued API keys can be sent with `x-app-password` for the higher partner tier:
+
+```bash
+curl -X POST 'https://YOUR_PAGES_HOST/api/lookup' \
+  -H 'content-type: application/json' \
+  -H 'x-app-password: partner-key-1' \
+  --data '{"records":["4226 N Ashland Ave"],"defaultZip":"60613"}'
 ```
 
 `GET /api/lookup` remains available for one-off map clicks and old links.
 `GET /api/usage` returns the app's displayed limit constants.
+`GET /api/analytics` requires a valid API key and returns 24-hour, 7-day, and
+30-day lookup totals plus recent request details, including submitted lookup
+inputs. The app stores analytics in `ANALYTICS_KV` and retains individual
+request rows for about 35 days.
 
 The API returns a `usage` object with the record count, estimated external
 subrequests, and measured wall time. Cloudflare exposes exact CPU time in
 Workers Logs rather than to the function response, so wall time is useful
 operationally but is not the billable CPU number.
 
-Current app-side limits are 20 records per request, 4,167 records per IP per
-hour, 100,000 records per IP per day, and 100,000 Cloudflare Function requests
-per day across the app.
+The default Cloudflare Free-plan policy reserves half of the 100,000 daily
+Function request budget for anonymous traffic. Anonymous requests are limited to
+50 records per request, about 100 records per IP per hour, and 500 records per
+IP per day. Authenticated requests are limited to 1,000 records per request,
+about 1,000 records per key per hour, and 10,000 records per key per day. All
+requests are also capped at an estimated 40 external subrequests so coordinate
+batches do not run into Cloudflare's 50-subrequest Free-plan limit.
+
+The built-in Pages limiter is intentionally lightweight and in-memory, so it is
+a soft abuse barrier rather than durable billing-grade accounting. The
+analytics KV log is intended for operational visibility into lookup inputs and
+recent usage, not exact billing-grade quota enforcement.
